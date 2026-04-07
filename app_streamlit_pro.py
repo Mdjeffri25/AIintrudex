@@ -98,6 +98,8 @@ def inject_styles():
         [data-testid="stSidebar"] {
             background: linear-gradient(180deg, #082554 0%, #0c3b82 60%, #00a8f0 150%);
             border-right: 1px solid rgba(255,255,255,0.08);
+            min-width: 240px !important;
+            max-width: 240px !important;
         }
         [data-testid="stSidebar"] * {
             color: #f3fbff !important;
@@ -115,48 +117,51 @@ def inject_styles():
             display: none !important;
         }
         .block-container {
-            padding-top: 1rem !important;
+            max-width: 1540px !important;
+            padding-top: 0.85rem !important;
+            padding-left: 1.45rem !important;
+            padding-right: 1.45rem !important;
         }
         .hero {
             background: linear-gradient(135deg, #002970 0%, #0a4ca8 58%, #00baf2 100%);
             color: white;
-            border-radius: 26px;
-            padding: 2rem 2.2rem;
-            box-shadow: 0 18px 36px rgba(0, 41, 112, 0.22);
-            margin-bottom: 1rem;
+            border-radius: 24px;
+            padding: 1.55rem 2rem;
+            box-shadow: 0 18px 34px rgba(0, 41, 112, 0.2);
+            margin-bottom: 0.9rem;
             text-align: center;
         }
-        .hero h1 { margin: 0 0 0.35rem 0; font-size: 3rem; letter-spacing: -0.03em; line-height: 1.12; }
-        .hero p { margin: 0; font-size: 1rem; color: rgba(255,255,255,0.92); }
+        .hero h1 { margin: 0 0 0.28rem 0; font-size: 2.35rem; letter-spacing: -0.03em; line-height: 1.15; }
+        .hero p { margin: 0; font-size: 0.96rem; color: rgba(255,255,255,0.92); }
         .hero .brand {
-            font-size: 3rem;
+            font-size: 2.2rem;
             font-weight: 700;
             letter-spacing: -0.03em;
             text-transform: none;
-            margin-bottom: 0.2rem;
+            margin-bottom: 0.22rem;
             color: rgba(255,255,255,0.98);
         }
         .card {
             background: rgba(255,255,255,0.92);
             border: 1px solid rgba(10, 76, 168, 0.08);
-            border-radius: 22px;
-            padding: 1.15rem 1.2rem;
-            box-shadow: 0 12px 30px rgba(16, 36, 62, 0.08);
-            margin-bottom: 1rem;
+            border-radius: 20px;
+            padding: 1.05rem 1.1rem;
+            box-shadow: 0 11px 24px rgba(16, 36, 62, 0.075);
+            margin-bottom: 0.9rem;
         }
         .metric-card {
             background: linear-gradient(180deg, #ffffff 0%, #f6fbff 100%);
             border: 1px solid rgba(0, 102, 204, 0.1);
-            border-radius: 18px;
-            padding: 1rem;
-            min-height: 118px;
-            box-shadow: 0 8px 18px rgba(16, 36, 62, 0.06);
+            border-radius: 17px;
+            padding: 0.95rem 1rem;
+            min-height: 104px;
+            box-shadow: 0 8px 16px rgba(16, 36, 62, 0.05);
         }
-        .metric-card .label { color: #537091; font-size: 0.88rem; margin-bottom: 0.5rem; }
-        .metric-card .value { color: #06224d; font-size: 2rem; font-weight: 700; }
-        .metric-card .hint { color: #6883a1; margin-top: 0.45rem; font-size: 0.84rem; }
-        .section-title { font-size: 1.35rem; font-weight: 700; color: #0b2347; margin-bottom: 0.35rem; }
-        .section-copy { color: #59708f; margin-bottom: 0.8rem; }
+        .metric-card .label { color: #537091; font-size: 0.86rem; margin-bottom: 0.42rem; }
+        .metric-card .value { color: #06224d; font-size: 1.7rem; font-weight: 700; }
+        .metric-card .hint { color: #6883a1; margin-top: 0.38rem; font-size: 0.82rem; }
+        .section-title { font-size: 1.22rem; font-weight: 700; color: #0b2347; margin-bottom: 0.28rem; }
+        .section-copy { color: #59708f; margin-bottom: 0.58rem; font-size: 0.96rem; }
         .status-ok {
             background: linear-gradient(135deg, #e8fff5 0%, #f3fffb 100%);
             border: 1px solid #bcefdc;
@@ -233,15 +238,15 @@ def inject_styles():
             color: #173154 !important;
         }
         .soft-title {
-            font-size: 2rem;
+            font-size: 1.78rem;
             font-weight: 700;
             color: #1f2c44;
-            margin-bottom: 0.6rem;
+            margin-bottom: 0.45rem;
         }
         .clean-list {
             color: #23354f;
-            font-size: 1.02rem;
-            line-height: 1.8;
+            font-size: 0.98rem;
+            line-height: 1.65;
         }
         .alert-card {
             border-left: 6px solid #ff5b5b;
@@ -314,30 +319,30 @@ def inject_styles():
         }
         @media (max-width: 900px) {
             .hero {
-                padding: 1.3rem 1.1rem;
+                padding: 1.15rem 1rem;
                 border-radius: 18px;
             }
             .hero .brand,
             .hero h1 {
-                font-size: 1.9rem;
+                font-size: 1.55rem;
                 line-height: 1.2;
             }
             .hero p {
-                font-size: 0.92rem;
+                font-size: 0.85rem;
             }
             .card, .metric-card {
-                border-radius: 16px;
-                padding: 0.95rem;
+                border-radius: 14px;
+                padding: 0.8rem;
             }
             .section-title {
-                font-size: 1.1rem;
+                font-size: 1rem;
             }
             .soft-title {
-                font-size: 1.45rem;
+                font-size: 1.25rem;
             }
             .clean-list {
-                font-size: 0.95rem;
-                line-height: 1.65;
+                font-size: 0.9rem;
+                line-height: 1.55;
             }
             .stButton > button, .stDownloadButton > button, .stFormSubmitButton > button {
                 min-height: 3rem !important;
@@ -373,63 +378,65 @@ def get_monitoring_host_ip() -> str:
 
 def render_auth():
     inject_styles()
-    st.markdown(
-        """
-        <div class="hero">
-            <div class="brand">AI INTRUDEX</div>
-            <h1>Network Intrusion Detection System</h1>
-            <p>AI INTRUDEX - Deep Learning for Advanced Network Security</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    left, right = st.columns([1.25, 1])
-    with left:
+    outer_left, center, outer_right = st.columns([0.04, 0.92, 0.04])
+    with center:
         st.markdown(
             """
-            <div class="card">
-                <div class="section-title">Platform Features</div>
-                <span class="badge">User Accounts</span>
-                <span class="badge">CSV Prediction</span>
-                <span class="badge">Live Monitoring</span>
-                <span class="badge">24/7 Monitor Controls</span>
-                <span class="badge">Email Alert Setup</span>
-                <span class="badge">Admin Dashboard</span>
-                <div style="height:0.8rem;"></div>
-                <div class="section-copy">
-                    This interface is designed for end users. They can log in, monitor traffic, upload CSV data,
-                    review alerts, and configure continuous monitoring from one dashboard.
-                </div>
+            <div class="hero" style="padding:1.15rem 1.6rem; max-width: 1120px; margin: 0 auto 0.9rem auto;">
+                <div class="brand" style="font-size:1.85rem; margin-bottom:0.15rem;">AI INTRUDEX</div>
+                <h1 style="font-size:2.05rem; margin-bottom:0.22rem;">Network Intrusion Detection System</h1>
+                <p style="font-size:0.92rem;">AI INTRUDEX - Deep Learning for Advanced Network Security</p>
             </div>
             """,
             unsafe_allow_html=True,
         )
-    with right:
-        login_tab, register_tab = st.tabs(["Login", "Register"])
-        with login_tab:
-            username = st.text_input("Username", key="login_username")
-            password = st.text_input("Password", key="login_password", type="password")
-            if st.button("Login", use_container_width=True):
-                response = api_post("/login", {"username": username, "password": password})
-                if response.ok:
-                    payload = response.json()
-                    st.session_state.token = payload["token"]
-                    st.session_state.user = payload["user"]
-                    st.rerun()
-                else:
-                    st.error(response.json().get("error", "Login failed"))
-        with register_tab:
-            username = st.text_input("New username", key="register_username")
-            password = st.text_input("New password", key="register_password", type="password")
-            if st.button("Create account", use_container_width=True):
-                response = api_post("/register", {"username": username, "password": password})
-                if response.ok:
-                    payload = response.json()
-                    st.session_state.token = payload["token"]
-                    st.session_state.user = payload["user"]
-                    st.rerun()
-                else:
-                    st.error(response.json().get("error", "Registration failed"))
+        left, right = st.columns([1.1, 0.9], gap="large")
+        with left:
+            st.markdown(
+                """
+                <div class="card" style="max-width: 660px;">
+                    <div class="section-title">Platform Features</div>
+                    <span class="badge">User Accounts</span>
+                    <span class="badge">CSV Prediction</span>
+                    <span class="badge">Live Monitoring</span>
+                    <span class="badge">24/7 Monitor Controls</span>
+                    <span class="badge">Email Alert Setup</span>
+                    <span class="badge">Admin Dashboard</span>
+                    <div style="height:0.8rem;"></div>
+                    <div class="section-copy">
+                        This interface is designed for end users. They can log in, monitor traffic, upload CSV data,
+                        review alerts, and configure continuous monitoring from one dashboard.
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with right:
+            login_tab, register_tab = st.tabs(["Login", "Register"])
+            with login_tab:
+                username = st.text_input("Username", key="login_username")
+                password = st.text_input("Password", key="login_password", type="password")
+                if st.button("Login", use_container_width=True):
+                    response = api_post("/login", {"username": username, "password": password})
+                    if response.ok:
+                        payload = response.json()
+                        st.session_state.token = payload["token"]
+                        st.session_state.user = payload["user"]
+                        st.rerun()
+                    else:
+                        st.error(response.json().get("error", "Login failed"))
+            with register_tab:
+                username = st.text_input("New username", key="register_username")
+                password = st.text_input("New password", key="register_password", type="password")
+                if st.button("Create account", use_container_width=True):
+                    response = api_post("/register", {"username": username, "password": password})
+                    if response.ok:
+                        payload = response.json()
+                        st.session_state.token = payload["token"]
+                        st.session_state.user = payload["user"]
+                        st.rerun()
+                    else:
+                        st.error(response.json().get("error", "Registration failed"))
 
 
 def render_metric_cards(dashboard_data: dict):
