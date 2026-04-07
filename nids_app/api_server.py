@@ -7,12 +7,14 @@ import pandas as pd
 from flask import Flask, jsonify, request
 
 from .agent_service import build_prediction_report
+from .analyst_agent import build_ai_brief
 from .audit import write_audit_log
 from .auth import authenticate_user, create_session, create_user, get_user_by_token
 from .database import execute, fetch_all, fetch_one, init_db, utc_now
 from .live_monitor import capture_live_window
 from .monitor_manager import monitor_status, start_monitor, stop_monitor
 from .model_service import predict_records
+from .notifier import send_email_alert
 
 
 app = Flask(__name__)
@@ -266,6 +268,40 @@ def history(user):
     return jsonify({"predictions": predictions, "uploads": uploads, "live_events": live_events})
 
 
+@app.get("/api/ai-analyst")
+@require_auth
+def ai_analyst(user):
+    predictions = [
+        dict(row)
+        for row in fetch_all(
+            """
+            SELECT id, source_type, predicted_label, confidence, severity, summary, recommended_action, created_at
+            FROM predictions
+            WHERE user_id = ?
+            ORDER BY id DESC
+            LIMIT 25
+            """,
+            (user["id"],),
+        )
+    ]
+    live_events = [
+        dict(row)
+        for row in fetch_all(
+            """
+            SELECT id, source_ip, destination_ip, protocol, anomaly_score, severity, summary, created_at
+            FROM live_events
+            WHERE user_id = ?
+            ORDER BY id DESC
+            LIMIT 25
+            """,
+            (user["id"],),
+        )
+    ]
+    brief = build_ai_brief(predictions, live_events)
+    write_audit_log("ai_analyst_review", {"user_id": user["id"], "status": brief["status"]}, user["id"])
+    return jsonify(brief)
+
+
 @app.get("/api/dashboard")
 @require_auth
 def dashboard(user):
@@ -465,6 +501,26 @@ def stop_monitoring(user):
     )
     write_audit_log("stop_monitor", {"user_id": user["id"], "stopped": stopped}, user["id"])
     return jsonify({"stopped": stopped, "monitor_running": monitor_status(user["id"])["running"]})
+
+
+@app.post("/api/alert-settings/test")
+@require_auth
+def test_alert_settings(user):
+    row = fetch_one("SELECT * FROM alert_settings WHERE user_id = ?", (user["id"],))
+    if not row:
+        return json_error("Save alert settings first")
+    settings = dict(row)
+    subject = "Intrudex Test Alert"
+    body = (
+        "This is a test alert from Intrudex.\n"
+        f"User: {user['username']}\n"
+        "The alert system is reachable and the interface test was triggered."
+    )
+    sent, message = send_email_alert(settings, subject, body)
+    write_audit_log("test_alert", {"user_id": user["id"], "sent": sent, "message": message}, user["id"])
+    if sent:
+        return jsonify({"sent": True, "mode": "email", "message": message})
+    return jsonify({"sent": True, "mode": "demo", "message": "Demo alert sent popup shown because email settings are incomplete."})
 
 
 def create_app():

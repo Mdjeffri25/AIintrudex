@@ -8,3 +8,4 @@ tensorflow-cpu
 flask
 requests
 scapy
+seaborn

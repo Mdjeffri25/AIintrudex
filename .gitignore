@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.nids_runtime/
+*.db
+*.db-journal
+.streamlit/secrets.toml
+
