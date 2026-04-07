@@ -47,3 +47,23 @@ def get_user_by_token(token: str) -> Optional[dict]:
     )
     return dict(row) if row else None
 
+
+def list_users() -> list[dict]:
+    rows = fetch_one("SELECT COUNT(*) AS count FROM users")
+    if not rows:
+        return []
+    from .database import fetch_all
+
+    return [dict(row) for row in fetch_all("SELECT id, username, role, created_at FROM users ORDER BY username")]
+
+
+def update_user_password(username: str, new_password: str) -> bool:
+    user = fetch_one("SELECT id FROM users WHERE username = ?", (username,))
+    if not user:
+        return False
+    password_hash = generate_password_hash(new_password)
+    execute(
+        "UPDATE users SET password_hash = ? WHERE username = ?",
+        (password_hash, username),
+    )
+    return True

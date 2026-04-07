@@ -68,6 +68,25 @@ REQUIRED_FILES = [
 ]
 
 
+def get_model_options(dashboard_data: dict) -> list[dict]:
+    options = dashboard_data.get("available_models") or [{"key": "kdd", "label": "KDD 41-Feature Model", "available": True}]
+    cleaned = []
+    for item in options:
+        cleaned.append(
+            {
+                "key": item.get("key", "kdd"),
+                "label": item.get("label", "KDD 41-Feature Model"),
+                "available": bool(item.get("available", False)),
+            }
+        )
+    return cleaned
+
+
+def format_model_label(item: dict) -> str:
+    suffix = "" if item["available"] else " (Artifacts not trained yet)"
+    return f"{item['label']}{suffix}"
+
+
 def api_headers() -> Dict[str, str]:
     token = st.session_state.get("token")
     return {"Authorization": f"Bearer {token}"} if token else {}
@@ -410,6 +429,9 @@ def render_auth():
                         This interface is designed for end users. They can log in, monitor traffic, upload CSV data,
                         review alerts, and configure continuous monitoring from one dashboard.
                     </div>
+                    <div class="section-copy" style="margin-top:0.55rem;">
+                        Admin access is available for the first registered account or any account created with the username <b>admin</b>.
+                    </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -531,7 +553,18 @@ def render_overview_page(dashboard_data: dict):
             unsafe_allow_html=True,
         )
 
+    st.markdown('<div class="soft-title">📈 Network Statistics</div>', unsafe_allow_html=True)
+    s1, s2, s3, s4 = st.columns(4)
+    s1.metric("Total Predictions", dashboard_data.get("total_predictions", 0))
+    s2.metric("Detected Intrusions", dashboard_data.get("intrusion_predictions", 0))
+    s3.metric("CSV Sessions", dashboard_data.get("total_uploads", 0))
+    s4.metric("Live Sessions", dashboard_data.get("total_live_events", 0))
+
     status_text = "Running" if dashboard_data.get("monitor_running") else "Stopped"
+    model_badges = "".join(
+        f'<span class="badge">{item["label"]}: {"Ready" if item["available"] else "Waiting"}</span>'
+        for item in get_model_options(dashboard_data)
+    )
     st.markdown(
         f"""
         <div class="card">
@@ -539,6 +572,8 @@ def render_overview_page(dashboard_data: dict):
             <span class="badge">Model: Deep Learning</span>
             <span class="badge">Database: Connected</span>
             <span class="badge">Live Monitor: {status_text}</span>
+            <span class="badge">Role: {dashboard_data.get("role", "user").title()}</span>
+            {model_badges}
         </div>
         """,
         unsafe_allow_html=True,
@@ -659,8 +694,18 @@ def render_notifications_page():
         )
 
 
-def render_detection_page():
+def render_detection_page(dashboard_data: dict):
     st.markdown('<div class="card"><div class="section-title">Intrusion Detection</div><div class="section-copy">Fill the traffic details below and run the model just like the older application, but with clearer sections and labels.</div></div>', unsafe_allow_html=True)
+    model_options = get_model_options(dashboard_data)
+    model_labels = [format_model_label(item) for item in model_options]
+    selected_label = st.selectbox("Detection Model", model_labels, index=0)
+    selected_model = next(item for item in model_options if format_model_label(item) == selected_label)
+    if selected_model["key"] == "unsw":
+        if not selected_model["available"]:
+            st.warning("UNSW-NB15 is visible in the selector, but its trained artifacts are not available yet. Train the UNSW pipeline first, or switch back to the KDD model.")
+        else:
+            st.info("UNSW-NB15 is enabled for CSV-based analysis. Manual detection remains optimized for the KDD 41-feature form.")
+
     defaults = {
         "duration": 0, "protocol_type": "tcp", "service": "http", "flag": "SF", "src_bytes": 181, "dst_bytes": 5450,
         "land": 0, "wrong_fragment": 0, "urgent": 0, "hot": 0, "num_failed_logins": 0, "logged_in": 1,
@@ -729,28 +774,38 @@ def render_detection_page():
         payload.setdefault(feature, value)
 
     if st.button("Run Deep Learning Prediction", use_container_width=True):
+        payload["model_name"] = selected_model["key"]
         response = api_post("/predict-row", payload)
         if response.ok:
             data = response.json()
             css_class = "status-ok" if data["predicted_label"].lower() == "normal" else "status-alert"
-            st.markdown(f'<div class="{css_class}"><b>{data["summary"]}</b><br>{data["rationale"]}<br><br>Recommended action: {data["recommended_action"]}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="{css_class}"><b>{data["summary"]}</b><br>Model path: {data.get("model_name", "kdd").upper()}<br>{data["rationale"]}<br><br>Recommended action: {data["recommended_action"]}</div>', unsafe_allow_html=True)
             st.json(data["probabilities"])
         else:
             st.error(response.json().get("error", "Prediction failed"))
 
 
-def render_csv_page():
+def render_csv_page(dashboard_data: dict):
     st.markdown('<div class="card"><div class="section-title">CSV Prediction</div><div class="section-copy">Upload a CSV file with the required 41 traffic feature columns to analyze multiple records at once.</div></div>', unsafe_allow_html=True)
+    model_options = get_model_options(dashboard_data)
+    model_labels = [format_model_label(item) for item in model_options]
+    selected_label = st.selectbox("CSV Analysis Model", model_labels, index=0, key="csv_model_selector")
+    selected_model = next(item for item in model_options if format_model_label(item) == selected_label)
+    if selected_model["key"] == "unsw":
+        if selected_model["available"]:
+            st.info("Upload a UNSW-NB15 formatted CSV to analyze with the UNSW model path.")
+        else:
+            st.warning("UNSW-NB15 artifacts are not available yet. Train the UNSW pipeline first or use the KDD model.")
     uploaded = st.file_uploader("Upload CSV file", type=["csv"])
     if uploaded:
         content = uploaded.getvalue().decode("utf-8")
         df = pd.read_csv(StringIO(content))
         st.dataframe(df.head(), use_container_width=True)
         if st.button("Analyze Uploaded CSV", use_container_width=True):
-            response = api_post("/predict-csv", {"filename": uploaded.name, "rows": df.to_dict(orient="records")})
+            response = api_post("/predict-csv", {"filename": uploaded.name, "rows": df.to_dict(orient="records"), "model_name": selected_model["key"]})
             if response.ok:
                 data = response.json()
-                st.success(f"Processed {data['total_rows']} rows. Intrusions: {data['intrusion_rows']}, Normal: {data['normal_rows']}.")
+                st.success(f"Processed {data['total_rows']} rows with {selected_model['key'].upper()}. Intrusions: {data['intrusion_rows']}, Normal: {data['normal_rows']}.")
                 st.dataframe(pd.DataFrame(data["results"]), use_container_width=True)
             else:
                 st.error(response.json().get("error", "CSV analysis failed"))
@@ -951,7 +1006,19 @@ def render_admin_page():
         return
     data = response.json()
     st.markdown('<div class="card"><div class="section-title">User Overview</div>', unsafe_allow_html=True)
-    st.dataframe(pd.DataFrame(data["users"]), use_container_width=True)
+    users_df = pd.DataFrame(data["users"])
+    st.dataframe(users_df, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown('<div class="card"><div class="section-title">Admin Reset Password</div><div class="section-copy">Reset a selected user password without losing their history or saved alerts.</div>', unsafe_allow_html=True)
+    if not users_df.empty:
+        username = st.selectbox("Choose user", users_df["username"].tolist(), key="admin_reset_username")
+        new_password = st.text_input("New password", type="password", key="admin_reset_password_input")
+        if st.button("Reset User Password", use_container_width=True):
+            reset_response = api_post("/admin/reset-password", {"username": username, "new_password": new_password})
+            if reset_response.ok:
+                st.success(f"Password updated for {username}. The user can now log in with the new password.")
+            else:
+                st.error(reset_response.json().get("error", "Password reset failed"))
     st.markdown("</div>", unsafe_allow_html=True)
     left, right = st.columns(2)
     with left:
@@ -964,8 +1031,22 @@ def render_admin_page():
         st.markdown("</div>", unsafe_allow_html=True)
 
 
-def render_model_performance_page():
-    st.markdown('<div class="card"><div class="section-title">Model Performance</div><div class="section-copy">Core deep learning architecture and baseline performance values from the trained project model.</div></div>', unsafe_allow_html=True)
+def render_model_performance_page(dashboard_data: dict):
+    model_options = get_model_options(dashboard_data)
+    selected_label = st.selectbox(
+        "Performance View",
+        [format_model_label(item) for item in model_options],
+        index=0,
+        key="performance_model_selector",
+    )
+    selected_model = next(item for item in model_options if format_model_label(item) == selected_label)
+    st.markdown(
+        f'<div class="card"><div class="section-title">Model Performance</div><div class="section-copy">Detailed performance view for the selected model path: <b>{selected_model["label"]}</b>.</div></div>',
+        unsafe_allow_html=True,
+    )
+    if selected_model["key"] == "unsw" and not selected_model["available"]:
+        st.warning("UNSW-NB15 performance charts will appear here after the UNSW training pipeline is run and the artifacts are saved in unsw_nb15/artifacts/.")
+
     left, right = st.columns([1.15, 1])
     with left:
         st.markdown('<div class="card"><div class="section-title">Model Architecture</div>', unsafe_allow_html=True)
@@ -980,6 +1061,10 @@ def render_model_performance_page():
     c1.metric("Accuracy", "98.93%")
     c2.metric("Precision", "99%")
     c3.metric("Recall", "99%")
+    s1, s2, s3 = st.columns(3)
+    s1.metric("Dataset", "KDD 41", "Active baseline")
+    s2.metric("Test Loss", "0.0265")
+    s3.metric("Epochs", "21", "Early stopped")
     fig_acc = go.Figure()
     fig_acc.add_trace(go.Scatter(x=TRAIN_EPOCHS, y=TRAIN_ACC, mode="lines+markers", name="Training Accuracy", line=dict(color="#0057d8", width=3)))
     fig_acc.add_trace(go.Scatter(x=TRAIN_EPOCHS, y=VAL_ACC, mode="lines+markers", name="Validation Accuracy", line=dict(color="#00a8f0", width=3)))
@@ -1086,9 +1171,9 @@ def main():
     if page == "Overview":
         render_overview_page(dashboard_data)
     elif page == "Intrusion Detection":
-        render_detection_page()
+        render_detection_page(dashboard_data)
     elif page == "CSV Prediction":
-        render_csv_page()
+        render_csv_page(dashboard_data)
     elif page == "Live Monitor":
         render_live_monitor_page(dashboard_data)
     elif page == "AI Analyst":
@@ -1104,7 +1189,7 @@ def main():
     elif page == "History":
         render_history_page()
     elif page == "Model Performance":
-        render_model_performance_page()
+        render_model_performance_page(dashboard_data)
     elif page == "Admin Dashboard":
         render_admin_page()
 

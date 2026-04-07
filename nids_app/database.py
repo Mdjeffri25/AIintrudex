@@ -59,6 +59,7 @@ def init_db() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
                 upload_id INTEGER,
+                model_name TEXT NOT NULL DEFAULT 'kdd',
                 source_type TEXT NOT NULL,
                 predicted_label TEXT NOT NULL,
                 confidence REAL NOT NULL,
@@ -115,6 +116,13 @@ def init_db() -> None:
             );
             """
         )
+        _ensure_column(conn, "predictions", "model_name", "TEXT NOT NULL DEFAULT 'kdd'")
+
+
+def _ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+    if column not in existing:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def fetch_one(query: str, params: Iterable[Any] = ()) -> Optional[sqlite3.Row]:

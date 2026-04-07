@@ -82,7 +82,7 @@ def _prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     return prepared
 
 
-def predict_records(records: List[Dict[str, Any]]) -> List[PredictionResult]:
+def predict_kdd_records(records: List[Dict[str, Any]]) -> List[PredictionResult]:
     raw_df = pd.DataFrame(records)
     prepared = _prepare_dataframe(raw_df)
     model, scaler, _, target_encoder = load_artifacts()
@@ -103,3 +103,28 @@ def predict_records(records: List[Dict[str, Any]]) -> List[PredictionResult]:
             )
         )
     return results
+
+
+def get_available_models() -> list[dict]:
+    models = [{"key": "kdd", "label": "KDD 41-Feature Model", "available": True}]
+    try:
+        from .unsw_service import get_unsw_feature_columns, unsw_available
+
+        models.append(
+            {
+                "key": "unsw",
+                "label": f"UNSW-NB15 Model ({len(get_unsw_feature_columns()) or 49} features)",
+                "available": bool(unsw_available()),
+            }
+        )
+    except Exception:
+        models.append({"key": "unsw", "label": "UNSW-NB15 Model (49 features)", "available": False})
+    return models
+
+
+def predict_records(records: List[Dict[str, Any]], model_name: str = "kdd") -> List[PredictionResult]:
+    if model_name == "unsw":
+        from .unsw_service import predict_unsw_records
+
+        return predict_unsw_records(records)
+    return predict_kdd_records(records)

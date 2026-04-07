@@ -9,11 +9,11 @@ from flask import Flask, jsonify, request
 from .agent_service import build_prediction_report
 from .analyst_agent import build_ai_brief
 from .audit import write_audit_log
-from .auth import authenticate_user, create_session, create_user, get_user_by_token
+from .auth import authenticate_user, create_session, create_user, get_user_by_token, update_user_password
 from .database import execute, fetch_all, fetch_one, init_db, utc_now
 from .live_monitor import capture_live_window
 from .monitor_manager import monitor_status, start_monitor, stop_monitor
-from .model_service import predict_records
+from .model_service import get_available_models, predict_records
 from .notifier import send_email_alert
 
 
@@ -85,17 +85,19 @@ def me(user):
 @require_auth
 def predict_row(user):
     payload = request.get_json(force=True)
+    model_name = (payload.pop("model_name", "kdd") or "kdd").strip().lower()
     records = [payload]
-    result = predict_records(records)[0]
+    result = predict_records(records, model_name=model_name)[0]
     report = build_prediction_report(result.predicted_label, result.confidence, result.features)
     prediction_id = execute(
         """
         INSERT INTO predictions
-        (user_id, upload_id, source_type, predicted_label, confidence, severity, summary, recommended_action, feature_snapshot, created_at)
-        VALUES (?, NULL, 'manual', ?, ?, ?, ?, ?, ?, ?)
+        (user_id, upload_id, model_name, source_type, predicted_label, confidence, severity, summary, recommended_action, feature_snapshot, created_at)
+        VALUES (?, NULL, ?, 'manual', ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             user["id"],
+            model_name,
             result.predicted_label,
             result.confidence,
             report.severity,
@@ -112,6 +114,7 @@ def predict_row(user):
             "predicted_label": result.predicted_label,
             "confidence": result.confidence,
             "probabilities": result.probabilities,
+            "model_name": model_name,
             "severity": report.severity,
             "summary": report.summary,
             "rationale": report.rationale,
@@ -126,10 +129,11 @@ def predict_csv(user):
     payload = request.get_json(force=True)
     rows: List[Dict[str, Any]] = payload.get("rows") or []
     filename = payload.get("filename") or "uploaded.csv"
+    model_name = (payload.get("model_name") or "kdd").strip().lower()
     if not rows:
         return json_error("No rows provided")
 
-    results = predict_records(rows)
+    results = predict_records(rows, model_name=model_name)
     intrusion_rows = 0
     upload_id = execute(
         """
@@ -147,12 +151,13 @@ def predict_csv(user):
         prediction_id = execute(
             """
             INSERT INTO predictions
-            (user_id, upload_id, source_type, predicted_label, confidence, severity, summary, recommended_action, feature_snapshot, created_at)
-            VALUES (?, ?, 'csv', ?, ?, ?, ?, ?, ?, ?)
+            (user_id, upload_id, model_name, source_type, predicted_label, confidence, severity, summary, recommended_action, feature_snapshot, created_at)
+            VALUES (?, ?, ?, 'csv', ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 user["id"],
                 upload_id,
+                model_name,
                 result.predicted_label,
                 result.confidence,
                 report.severity,
@@ -165,6 +170,7 @@ def predict_csv(user):
         response_rows.append(
             {
                 "prediction_id": prediction_id,
+                "model_name": model_name,
                 "predicted_label": result.predicted_label,
                 "confidence": result.confidence,
                 "severity": report.severity,
@@ -230,7 +236,7 @@ def history(user):
         dict(row)
         for row in fetch_all(
             """
-            SELECT id, source_type, predicted_label, confidence, severity, summary, recommended_action, created_at
+            SELECT id, model_name, source_type, predicted_label, confidence, severity, summary, recommended_action, created_at
             FROM predictions
             WHERE user_id = ?
             ORDER BY id DESC
@@ -275,7 +281,7 @@ def ai_analyst(user):
         dict(row)
         for row in fetch_all(
             """
-            SELECT id, source_type, predicted_label, confidence, severity, summary, recommended_action, created_at
+            SELECT id, model_name, source_type, predicted_label, confidence, severity, summary, recommended_action, created_at
             FROM predictions
             WHERE user_id = ?
             ORDER BY id DESC
@@ -314,7 +320,7 @@ def ai_chat(user):
         dict(row)
         for row in fetch_all(
             """
-            SELECT id, source_type, predicted_label, confidence, severity, summary, recommended_action, created_at
+            SELECT id, model_name, source_type, predicted_label, confidence, severity, summary, recommended_action, created_at
             FROM predictions
             WHERE user_id = ?
             ORDER BY id DESC
@@ -363,14 +369,14 @@ def ai_chat(user):
         )
     elif "dataset" in lower or "unsw" in lower or "kdd" in lower:
         answer = (
-            "The current running website uses the KDD-style 41-feature model flow. "
-            "UNSW-NB15 has been added as a separate enhanced training pipeline for modernization, "
-            "but it is not yet the active website model because UNSW-NB15 uses a different feature structure and requires a separate retrained model path."
+            "The website supports two model paths: the active KDD-style 41-feature model and an UNSW-NB15 enhanced model path. "
+            "If UNSW artifacts are available, the UI model selector can route analysis to the UNSW model. "
+            "If they are not trained yet, the UI keeps UNSW visible but marked unavailable."
         )
     elif "model" in lower and ("use" in lower or "using" in lower or "what model" in lower):
         answer = (
-            "The website currently uses your deep learning intrusion detection model built on a KDD-style 41-feature pipeline. "
-            "It predicts whether traffic is normal or anomaly and powers manual prediction, CSV prediction, and the current live feature extraction flow."
+            "The website currently provides a KDD 41-feature model path and can also expose an UNSW-NB15 model path when its artifacts are trained and saved. "
+            "Manual detection is currently optimized for KDD, while CSV analysis can be routed to the selected model."
         )
     elif "summarize" in lower and ("live" in lower or "monitoring" in lower):
         if live_events:
@@ -402,8 +408,7 @@ def ai_chat(user):
             answer = "There is no suspicious record available to generate a report from right now."
     elif "41" in lower or "features" in lower:
         answer = (
-            "The app still shows the 41-feature structure because the active website model is the original KDD-style model. "
-            "UNSW-NB15 has a different feature layout, so it has been added as a separate training pipeline and is not yet plugged into the live website model selector."
+            "The KDD model uses 41 features. UNSW-NB15 uses a different feature layout, so the app exposes it through a separate model path and selector rather than mixing both forms into one fixed input structure."
         )
     else:
         answer = (
@@ -434,8 +439,15 @@ def dashboard(user):
             "total_uploads": total_uploads,
             "total_live_events": total_live_events,
             "monitor_running": monitor_status(user["id"])["running"],
+            "available_models": get_available_models(),
         }
     )
+
+
+@app.get("/api/models")
+@require_auth
+def models(user):
+    return jsonify({"models": get_available_models()})
 
 
 @app.get("/api/admin/overview")
@@ -488,6 +500,25 @@ def admin_overview(user):
         )
     ]
     return jsonify({"users": users, "recent_alerts": recent_alerts, "live_events": live_events})
+
+
+@app.post("/api/admin/reset-password")
+@require_auth
+def admin_reset_password(user):
+    if user["role"] != "admin":
+        return json_error("Admin access required", 403)
+    payload = request.get_json(force=True)
+    username = (payload.get("username") or "").strip()
+    new_password = payload.get("new_password") or ""
+    if len(username) < 3:
+        return json_error("Username is required")
+    if len(new_password) < 4:
+        return json_error("New password must be at least 4 characters")
+    updated = update_user_password(username, new_password)
+    if not updated:
+        return json_error("User not found", 404)
+    write_audit_log("admin_reset_password", {"admin": user["username"], "target": username}, user["id"])
+    return jsonify({"updated": True, "username": username})
 
 
 @app.get("/api/alert-settings")

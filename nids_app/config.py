@@ -14,3 +14,11 @@ TARGET_ENCODER_PATH = BASE_DIR / "target_encoder.pkl"
 
 API_HOST = "127.0.0.1"
 API_PORT = 8000
+
+UNSW_BASE_DIR = BASE_DIR / "unsw_nb15"
+UNSW_ARTIFACTS_DIR = UNSW_BASE_DIR / "artifacts"
+UNSW_MODEL_PATH = UNSW_ARTIFACTS_DIR / "unsw_model.keras"
+UNSW_SCALER_PATH = UNSW_ARTIFACTS_DIR / "unsw_scaler.pkl"
+UNSW_LABEL_ENCODERS_PATH = UNSW_ARTIFACTS_DIR / "unsw_label_encoders.pkl"
+UNSW_TARGET_ENCODER_PATH = UNSW_ARTIFACTS_DIR / "unsw_target_encoder.pkl"
+UNSW_METRICS_PATH = UNSW_ARTIFACTS_DIR / "unsw_metrics.json"
