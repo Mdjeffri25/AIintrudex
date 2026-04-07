@@ -442,6 +442,35 @@ def render_overview_page(dashboard_data: dict):
         for item in REQUIRED_FILES:
             st.markdown(f'<div class="clean-list">• {item}</div>', unsafe_allow_html=True)
 
+    st.markdown('<div class="soft-title">🧪 Dataset Info</div>', unsafe_allow_html=True)
+    ds1, ds2 = st.columns(2)
+    with ds1:
+        st.markdown(
+            """
+            <div class="card">
+                <div class="section-title">KDD-Based Current App</div>
+                <div class="section-copy">
+                    The current running application follows the original KDD-style 41-feature flow. This is the active model path
+                    used by CSV prediction, manual prediction, and the current live feature extraction logic.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with ds2:
+        st.markdown(
+            """
+            <div class="card">
+                <div class="section-title">UNSW-NB15 Enhanced Training Pipeline</div>
+                <div class="section-copy">
+                    A separate UNSW-NB15 pipeline has been added for model modernization. It does not replace the current app yet,
+                    but it is included for retraining, evaluation, and improved dataset relevance.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
     status_text = "Running" if dashboard_data.get("monitor_running") else "Stopped"
     st.markdown(
         f"""

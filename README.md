@@ -1,6 +1,11 @@
-# network-intrusion-detection
-Deep Learning based Network Intrusion Detection System (NIDS) that analyzes network traffic features and classifies connections as normal or malicious using a neural network model. The system includes a Streamlit dashboard for real-time monitoring and prediction visualization.
-Network Intrusion Detection System using Deep Learning
+# AIintrudex
+AIintrudex is a deep-learning-based Network Intrusion Detection System built around the project title **AI Based Intrusion Detection Using Deep Learning**.
+
+This project now includes:
+
+- the current KDD-style 41-feature running application
+- a separate UNSW-NB15 enhanced training pipeline
+- CSV prediction, live monitoring, history, notifications, reports, admin analytics, and an agent-style AI analyst page
 
 This project implements a Network Intrusion Detection System (NIDS) using Deep Learning techniques to identify malicious activities in network traffic. The system analyzes multiple network connection features and classifies traffic as normal or anomalous.
 
