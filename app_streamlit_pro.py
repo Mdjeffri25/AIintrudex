@@ -98,8 +98,8 @@ def inject_styles():
         [data-testid="stSidebar"] {
             background: linear-gradient(180deg, #082554 0%, #0c3b82 60%, #00a8f0 150%);
             border-right: 1px solid rgba(255,255,255,0.08);
-            min-width: 240px !important;
-            max-width: 240px !important;
+            min-width: 205px !important;
+            max-width: 205px !important;
         }
         [data-testid="stSidebar"] * {
             color: #f3fbff !important;
@@ -117,51 +117,51 @@ def inject_styles():
             display: none !important;
         }
         .block-container {
-            max-width: 1540px !important;
-            padding-top: 0.85rem !important;
-            padding-left: 1.45rem !important;
-            padding-right: 1.45rem !important;
+            max-width: 1380px !important;
+            padding-top: 0.65rem !important;
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
         }
         .hero {
             background: linear-gradient(135deg, #002970 0%, #0a4ca8 58%, #00baf2 100%);
             color: white;
             border-radius: 24px;
-            padding: 1.55rem 2rem;
-            box-shadow: 0 18px 34px rgba(0, 41, 112, 0.2);
-            margin-bottom: 0.9rem;
+            padding: 1.05rem 1.5rem;
+            box-shadow: 0 15px 28px rgba(0, 41, 112, 0.18);
+            margin-bottom: 0.75rem;
             text-align: center;
         }
-        .hero h1 { margin: 0 0 0.28rem 0; font-size: 2.35rem; letter-spacing: -0.03em; line-height: 1.15; }
-        .hero p { margin: 0; font-size: 0.96rem; color: rgba(255,255,255,0.92); }
+        .hero h1 { margin: 0 0 0.18rem 0; font-size: 1.85rem; letter-spacing: -0.03em; line-height: 1.15; }
+        .hero p { margin: 0; font-size: 0.88rem; color: rgba(255,255,255,0.92); }
         .hero .brand {
-            font-size: 2.2rem;
+            font-size: 1.7rem;
             font-weight: 700;
             letter-spacing: -0.03em;
             text-transform: none;
-            margin-bottom: 0.22rem;
+            margin-bottom: 0.12rem;
             color: rgba(255,255,255,0.98);
         }
         .card {
             background: rgba(255,255,255,0.92);
             border: 1px solid rgba(10, 76, 168, 0.08);
             border-radius: 20px;
-            padding: 1.05rem 1.1rem;
-            box-shadow: 0 11px 24px rgba(16, 36, 62, 0.075);
-            margin-bottom: 0.9rem;
+            padding: 0.9rem 0.95rem;
+            box-shadow: 0 9px 20px rgba(16, 36, 62, 0.07);
+            margin-bottom: 0.7rem;
         }
         .metric-card {
             background: linear-gradient(180deg, #ffffff 0%, #f6fbff 100%);
             border: 1px solid rgba(0, 102, 204, 0.1);
             border-radius: 17px;
-            padding: 0.95rem 1rem;
-            min-height: 104px;
+            padding: 0.8rem 0.9rem;
+            min-height: 88px;
             box-shadow: 0 8px 16px rgba(16, 36, 62, 0.05);
         }
-        .metric-card .label { color: #537091; font-size: 0.86rem; margin-bottom: 0.42rem; }
-        .metric-card .value { color: #06224d; font-size: 1.7rem; font-weight: 700; }
-        .metric-card .hint { color: #6883a1; margin-top: 0.38rem; font-size: 0.82rem; }
-        .section-title { font-size: 1.22rem; font-weight: 700; color: #0b2347; margin-bottom: 0.28rem; }
-        .section-copy { color: #59708f; margin-bottom: 0.58rem; font-size: 0.96rem; }
+        .metric-card .label { color: #537091; font-size: 0.8rem; margin-bottom: 0.32rem; }
+        .metric-card .value { color: #06224d; font-size: 1.45rem; font-weight: 700; }
+        .metric-card .hint { color: #6883a1; margin-top: 0.28rem; font-size: 0.78rem; }
+        .section-title { font-size: 1.1rem; font-weight: 700; color: #0b2347; margin-bottom: 0.2rem; }
+        .section-copy { color: #59708f; margin-bottom: 0.45rem; font-size: 0.9rem; }
         .status-ok {
             background: linear-gradient(135deg, #e8fff5 0%, #f3fffb 100%);
             border: 1px solid #bcefdc;
@@ -238,15 +238,15 @@ def inject_styles():
             color: #173154 !important;
         }
         .soft-title {
-            font-size: 1.78rem;
+            font-size: 1.45rem;
             font-weight: 700;
             color: #1f2c44;
-            margin-bottom: 0.45rem;
+            margin-bottom: 0.3rem;
         }
         .clean-list {
             color: #23354f;
-            font-size: 0.98rem;
-            line-height: 1.65;
+            font-size: 0.9rem;
+            line-height: 1.55;
         }
         .alert-card {
             border-left: 6px solid #ff5b5b;
