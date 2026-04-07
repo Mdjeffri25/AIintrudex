@@ -302,6 +302,119 @@ def ai_analyst(user):
     return jsonify(brief)
 
 
+@app.post("/api/ai-chat")
+@require_auth
+def ai_chat(user):
+    payload = request.get_json(force=True)
+    message = (payload.get("message") or "").strip()
+    if not message:
+        return json_error("Message is required")
+
+    predictions = [
+        dict(row)
+        for row in fetch_all(
+            """
+            SELECT id, source_type, predicted_label, confidence, severity, summary, recommended_action, created_at
+            FROM predictions
+            WHERE user_id = ?
+            ORDER BY id DESC
+            LIMIT 10
+            """,
+            (user["id"],),
+        )
+    ]
+    live_events = [
+        dict(row)
+        for row in fetch_all(
+            """
+            SELECT id, source_ip, destination_ip, protocol, anomaly_score, severity, summary, created_at
+            FROM live_events
+            WHERE user_id = ?
+            ORDER BY id DESC
+            LIMIT 10
+            """,
+            (user["id"],),
+        )
+    ]
+    suspicious_predictions = [row for row in predictions if str(row.get("predicted_label", "")).lower() != "normal"]
+    elevated_live = [row for row in live_events if str(row.get("severity", "")).lower() in {"medium", "high", "critical"}]
+    lower = message.lower()
+
+    if "why" in lower and ("alert" in lower or "generated" in lower):
+        if suspicious_predictions:
+            latest = suspicious_predictions[0]
+            answer = (
+                f"The latest suspicious prediction was generated because the model classified the traffic as "
+                f"{latest['predicted_label']} with {latest['confidence']:.2f}% confidence. "
+                f"Summary: {latest['summary']} Recommended action: {latest['recommended_action']}"
+            )
+        elif elevated_live:
+            latest = elevated_live[0]
+            answer = (
+                f"The latest live alert was generated from monitoring activity around source {latest.get('source_ip')} "
+                f"with severity {latest.get('severity')}. Summary: {latest.get('summary')}"
+            )
+        else:
+            answer = "No recent suspicious alert is available, so there is no alert reason to explain right now."
+    elif "latest suspicious" in lower or "suspicious activity" in lower:
+        answer = (
+            f"I found {len(suspicious_predictions)} suspicious prediction records and {len(elevated_live)} elevated live events "
+            f"in your recent history."
+        )
+    elif "dataset" in lower or "unsw" in lower or "kdd" in lower:
+        answer = (
+            "The current running website uses the KDD-style 41-feature model flow. "
+            "UNSW-NB15 has been added as a separate enhanced training pipeline for modernization, "
+            "but it is not yet the active website model because UNSW-NB15 uses a different feature structure and requires a separate retrained model path."
+        )
+    elif "model" in lower and ("use" in lower or "using" in lower or "what model" in lower):
+        answer = (
+            "The website currently uses your deep learning intrusion detection model built on a KDD-style 41-feature pipeline. "
+            "It predicts whether traffic is normal or anomaly and powers manual prediction, CSV prediction, and the current live feature extraction flow."
+        )
+    elif "summarize" in lower and ("live" in lower or "monitoring" in lower):
+        if live_events:
+            latest = live_events[0]
+            answer = (
+                f"Latest live monitoring summary: protocol {latest.get('protocol')}, source {latest.get('source_ip')}, "
+                f"destination {latest.get('destination_ip')}, severity {latest.get('severity')}. "
+                f"{latest.get('summary')}"
+            )
+        else:
+            answer = "There are no saved live monitoring events yet."
+    elif "what should i do" in lower or "next" in lower or "action" in lower:
+        if suspicious_predictions:
+            latest = suspicious_predictions[0]
+            answer = f"My recommendation is: {latest['recommended_action']}"
+        elif elevated_live:
+            answer = "Keep continuous monitoring enabled, inspect repeated source IPs, and review recent suspicious traffic windows."
+        else:
+            answer = "Continue monitoring, keep CSV or live monitoring active, and review alerts when new suspicious activity appears."
+    elif "report" in lower:
+        if suspicious_predictions:
+            latest = suspicious_predictions[0]
+            answer = (
+                f"Incident report draft: suspicious traffic detected as {latest['predicted_label']} with "
+                f"{latest['confidence']:.2f}% confidence on {latest['created_at']}. "
+                f"Summary: {latest['summary']} Recommended action: {latest['recommended_action']}"
+            )
+        else:
+            answer = "There is no suspicious record available to generate a report from right now."
+    elif "41" in lower or "features" in lower:
+        answer = (
+            "The app still shows the 41-feature structure because the active website model is the original KDD-style model. "
+            "UNSW-NB15 has a different feature layout, so it has been added as a separate training pipeline and is not yet plugged into the live website model selector."
+        )
+    else:
+        answer = (
+            "I can help with alert explanation, suspicious activity summary, live monitoring summary, next-step guidance, "
+            "incident report drafting, and explain which dataset and model flow the website is currently using."
+        )
+
+    write_audit_log("ai_chat", {"user_id": user["id"], "message": message[:120]}, user["id"])
+    return jsonify({"reply": answer})
+
+
 @app.get("/api/dashboard")
 @require_auth
 def dashboard(user):

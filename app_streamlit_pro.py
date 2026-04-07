@@ -124,9 +124,18 @@ def inject_styles():
             padding: 2rem 2.2rem;
             box-shadow: 0 18px 36px rgba(0, 41, 112, 0.22);
             margin-bottom: 1rem;
+            text-align: center;
         }
-        .hero h1 { margin: 0 0 0.4rem 0; font-size: 2.3rem; letter-spacing: -0.03em; }
+        .hero h1 { margin: 0 0 0.35rem 0; font-size: 3rem; letter-spacing: -0.03em; line-height: 1.12; }
         .hero p { margin: 0; font-size: 1rem; color: rgba(255,255,255,0.92); }
+        .hero .brand {
+            font-size: 3rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            text-transform: none;
+            margin-bottom: 0.2rem;
+            color: rgba(255,255,255,0.98);
+        }
         .card {
             background: rgba(255,255,255,0.92);
             border: 1px solid rgba(10, 76, 168, 0.08);
@@ -267,13 +276,50 @@ def inject_styles():
             font-size: 1.35rem;
             margin-right: 0.35rem;
         }
+        .chat-wrap {
+            display: flex;
+            width: 100%;
+            margin-bottom: 0.85rem;
+        }
+        .chat-wrap.user {
+            justify-content: flex-end;
+        }
+        .chat-wrap.assistant {
+            justify-content: flex-start;
+        }
+        .chat-bubble {
+            max-width: 78%;
+            border-radius: 18px;
+            padding: 0.95rem 1rem;
+            box-shadow: 0 8px 22px rgba(16, 36, 62, 0.08);
+            line-height: 1.55;
+        }
+        .chat-bubble.user {
+            background: linear-gradient(135deg, #e8f4ff 0%, #ffffff 100%);
+            border: 1px solid #c9def7;
+            color: #13355d;
+        }
+        .chat-bubble.assistant {
+            background: linear-gradient(135deg, #003d97 0%, #00a8f0 100%);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: #ffffff;
+        }
+        .chat-role {
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            opacity: 0.92;
+            margin-bottom: 0.35rem;
+            text-transform: uppercase;
+        }
         @media (max-width: 900px) {
             .hero {
                 padding: 1.3rem 1.1rem;
                 border-radius: 18px;
             }
+            .hero .brand,
             .hero h1 {
-                font-size: 1.55rem;
+                font-size: 1.9rem;
                 line-height: 1.2;
             }
             .hero p {
@@ -296,6 +342,9 @@ def inject_styles():
             .stButton > button, .stDownloadButton > button, .stFormSubmitButton > button {
                 min-height: 3rem !important;
                 font-size: 1rem !important;
+            }
+            .chat-bubble {
+                max-width: 100%;
             }
         }
         </style>
@@ -327,8 +376,9 @@ def render_auth():
     st.markdown(
         """
         <div class="hero">
-            <h1>AIintrudex</h1>
-            <p>Professional network traffic monitoring with user accounts, CSV analysis, live monitoring, saved history, and alert automation.</p>
+            <div class="brand">AI INTRUDEX</div>
+            <h1>Network Intrusion Detection System</h1>
+            <p>AI INTRUDEX - Deep Learning for Advanced Network Security</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -763,6 +813,45 @@ def render_ai_analyst_page():
         st.markdown(f'<div class="clean-list">• {step}</div>', unsafe_allow_html=True)
 
 
+def render_ai_assistant_page():
+    st.markdown(
+        '<div class="card"><div class="section-title">AI Assistant</div><div class="section-copy">Ask about alerts, suspicious activity, live monitoring, reports, or what action to take next.</div></div>',
+        unsafe_allow_html=True,
+    )
+    sample_cols = st.columns(4)
+    samples = [
+        "Why was this alert generated?",
+        "Show my latest suspicious activity",
+        "Summarize today’s live monitoring",
+        "What should I do next?",
+    ]
+    for col, sample in zip(sample_cols, samples):
+        with col:
+            if st.button(sample, use_container_width=True, key=f"sample_{sample}"):
+                st.session_state["ai_chat_input"] = sample
+
+    if "ai_chat_history" not in st.session_state:
+        st.session_state["ai_chat_history"] = []
+
+    message = st.text_input("Ask AI Assistant", key="ai_chat_input")
+    if st.button("Send to AI Assistant", use_container_width=True):
+        response = api_post("/ai-chat", {"message": message})
+        if response.ok:
+            reply = response.json()["reply"]
+            st.session_state["ai_chat_history"].append({"role": "user", "text": message})
+            st.session_state["ai_chat_history"].append({"role": "assistant", "text": reply})
+        else:
+            st.error(response.json().get("error", "AI assistant failed"))
+
+    for item in st.session_state["ai_chat_history"][-10:]:
+        css = "status-alert" if item["role"] == "assistant" else "card"
+        label = "AI Assistant" if item["role"] == "assistant" else "You"
+        st.markdown(
+            f'<div class="{css}"><b>{label}:</b> {item["text"]}</div>',
+            unsafe_allow_html=True,
+        )
+
+
 def render_alert_settings_page(dashboard_data: dict):
     response = api_get("/alert-settings")
     if not response.ok:
@@ -964,7 +1053,7 @@ def main():
     dashboard_data = dashboard_response.json()
     with st.sidebar:
         st.markdown("## Navigation")
-        pages = ["Overview", "Intrusion Detection", "CSV Prediction", "Live Monitor", "AI Analyst", "Notifications", "Reports", "Alert Settings", "History", "Model Performance"]
+        pages = ["Overview", "Intrusion Detection", "CSV Prediction", "Live Monitor", "AI Analyst", "AI Assistant", "Notifications", "Reports", "Alert Settings", "History", "Model Performance"]
         if dashboard_data.get("role") == "admin":
             pages.append("Admin Dashboard")
         page = st.radio("Select Page", pages)
@@ -975,8 +1064,9 @@ def main():
     st.markdown(
         """
         <div class="hero">
-            <h1>AIintrudex</h1>
-            <p>AI Based Intrusion Detection Using Deep Learning with CSV prediction, live monitoring, user history, alert automation, and analyst workflow.</p>
+            <div class="brand">AI INTRUDEX</div>
+            <h1>Network Intrusion Detection System</h1>
+            <p>AI INTRUDEX - Deep Learning for Advanced Network Security</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -993,6 +1083,8 @@ def main():
         render_live_monitor_page(dashboard_data)
     elif page == "AI Analyst":
         render_ai_analyst_page()
+    elif page == "AI Assistant":
+        render_ai_assistant_page()
     elif page == "Notifications":
         render_notifications_page()
     elif page == "Reports":
