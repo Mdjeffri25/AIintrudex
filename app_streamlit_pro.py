@@ -98,8 +98,8 @@ def inject_styles():
         [data-testid="stSidebar"] {
             background: linear-gradient(180deg, #082554 0%, #0c3b82 60%, #00a8f0 150%);
             border-right: 1px solid rgba(255,255,255,0.08);
-            min-width: 205px !important;
-            max-width: 205px !important;
+            min-width: 185px !important;
+            max-width: 185px !important;
         }
         [data-testid="stSidebar"] * {
             color: #f3fbff !important;
@@ -117,24 +117,27 @@ def inject_styles():
             display: none !important;
         }
         .block-container {
-            max-width: 1380px !important;
+            max-width: 1220px !important;
             padding-top: 0.65rem !important;
-            padding-left: 1rem !important;
-            padding-right: 1rem !important;
+            padding-left: 0.8rem !important;
+            padding-right: 0.8rem !important;
         }
         .hero {
             background: linear-gradient(135deg, #002970 0%, #0a4ca8 58%, #00baf2 100%);
             color: white;
             border-radius: 24px;
-            padding: 1.05rem 1.5rem;
+            padding: 0.9rem 1.25rem;
             box-shadow: 0 15px 28px rgba(0, 41, 112, 0.18);
             margin-bottom: 0.75rem;
             text-align: center;
+            max-width: 1080px;
+            margin-left: auto;
+            margin-right: auto;
         }
-        .hero h1 { margin: 0 0 0.18rem 0; font-size: 1.85rem; letter-spacing: -0.03em; line-height: 1.15; }
-        .hero p { margin: 0; font-size: 0.88rem; color: rgba(255,255,255,0.92); }
+        .hero h1 { margin: 0 0 0.16rem 0; font-size: 1.65rem; letter-spacing: -0.03em; line-height: 1.15; }
+        .hero p { margin: 0; font-size: 0.82rem; color: rgba(255,255,255,0.92); }
         .hero .brand {
-            font-size: 1.7rem;
+            font-size: 1.45rem;
             font-weight: 700;
             letter-spacing: -0.03em;
             text-transform: none;
@@ -153,13 +156,13 @@ def inject_styles():
             background: linear-gradient(180deg, #ffffff 0%, #f6fbff 100%);
             border: 1px solid rgba(0, 102, 204, 0.1);
             border-radius: 17px;
-            padding: 0.8rem 0.9rem;
-            min-height: 88px;
+            padding: 0.72rem 0.8rem;
+            min-height: 78px;
             box-shadow: 0 8px 16px rgba(16, 36, 62, 0.05);
         }
         .metric-card .label { color: #537091; font-size: 0.8rem; margin-bottom: 0.32rem; }
-        .metric-card .value { color: #06224d; font-size: 1.45rem; font-weight: 700; }
-        .metric-card .hint { color: #6883a1; margin-top: 0.28rem; font-size: 0.78rem; }
+        .metric-card .value { color: #06224d; font-size: 1.28rem; font-weight: 700; }
+        .metric-card .hint { color: #6883a1; margin-top: 0.24rem; font-size: 0.73rem; }
         .section-title { font-size: 1.1rem; font-weight: 700; color: #0b2347; margin-bottom: 0.2rem; }
         .section-copy { color: #59708f; margin-bottom: 0.45rem; font-size: 0.9rem; }
         .status-ok {
