@@ -49,8 +49,8 @@ KEY_FEATURES = [
 
 TECHNICAL_SPECS = [
     "Model Type: Deep Neural Network (TensorFlow/Keras)",
-    "Features Used: 41 network connection features",
-    "Training Data: KDD Cup 99 Dataset",
+    "Features Used: KDD 41-feature path + UNSW-NB15 dataset path",
+    "Training Data: KDD Cup 99 + UNSW-NB15",
     "Framework: TensorFlow, Streamlit, Flask, SQLite",
 ]
 
@@ -111,6 +111,17 @@ def api_get(path: str):
     return requests.get(f"{API_BASE}{path}", headers=api_headers(), timeout=120)
 
 
+def get_api_error(response, fallback: str) -> str:
+    try:
+        data = response.json()
+        if isinstance(data, dict):
+            return data.get("error") or data.get("message") or fallback
+    except Exception:
+        pass
+    body = (response.text or "").strip()
+    return body[:200] if body else fallback
+
+
 def ensure_logged_in() -> bool:
     return bool(st.session_state.get("token"))
 
@@ -137,22 +148,42 @@ def inject_styles():
         [data-testid="stSidebar"] [role="radiogroup"] > label {
             background: transparent !important;
             border-radius: 14px !important;
-            padding: 0.3rem 0.55rem !important;
+            padding: 0.28rem 0.3rem !important;
             margin: 0.08rem 0 0.12rem 0 !important;
             border: 1px solid transparent !important;
             transition: all 0.18s ease !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stRadio"] label > div:first-child,
+        [data-testid="stSidebar"] [role="radiogroup"] > label > div:first-child,
+        [data-testid="stSidebar"] input[type="radio"] {
+            display: none !important;
+            width: 0 !important;
+            min-width: 0 !important;
+            opacity: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stRadio"] label > div:last-child,
+        [data-testid="stSidebar"] [role="radiogroup"] > label > div:last-child {
+            width: 100% !important;
+            margin-left: 0 !important;
         }
         [data-testid="stSidebar"] [role="radiogroup"] > label:hover {
             background: rgba(255,255,255,0.08) !important;
             border-color: rgba(255,255,255,0.12) !important;
         }
+        [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked),
         [data-testid="stSidebar"] [role="radiogroup"] > label[data-selected="true"] {
             background: linear-gradient(135deg, rgba(0, 140, 255, 0.32) 0%, rgba(0, 186, 242, 0.28) 100%) !important;
             border-color: rgba(255,255,255,0.18) !important;
             box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08) !important;
         }
-        [data-testid="stSidebar"] [role="radiogroup"] > label p {
+        [data-testid="stSidebar"] [role="radiogroup"] > label p,
+        [data-testid="stSidebar"] [data-testid="stRadio"] label p {
             font-weight: 600 !important;
+            margin: 0 !important;
+            padding: 0.32rem 0.65rem !important;
+            border-radius: 12px !important;
         }
         header[data-testid="stHeader"] {
             background: transparent !important;
@@ -561,10 +592,10 @@ def render_overview_page(dashboard_data: dict):
         st.markdown(
             """
             <div class="card">
-                <div class="section-title">KDD-Based Current App</div>
+                <div class="section-title">KDD 41-Feature Analysis Path</div>
                 <div class="section-copy">
-                    The current running application follows the original KDD-style 41-feature flow. This is the active model path
-                    used by CSV prediction, manual prediction, and the current live feature extraction logic.
+                    The KDD model remains active for manual prediction, CSV analysis, and the current live feature extraction
+                    flow. This keeps the original project logic working for real-time packet-window analysis.
                 </div>
             </div>
             """,
@@ -574,10 +605,10 @@ def render_overview_page(dashboard_data: dict):
         st.markdown(
             """
             <div class="card">
-                <div class="section-title">UNSW-NB15 Enhanced Training Pipeline</div>
+                <div class="section-title">UNSW-NB15 Integrated Model Path</div>
                 <div class="section-copy">
-                    A separate UNSW-NB15 pipeline has been added for model modernization. It does not replace the current app yet,
-                    but it is included for retraining, evaluation, and improved dataset relevance.
+                    The UNSW-NB15 model is integrated for modern dataset evaluation, CSV-based analysis, and performance
+                    comparison. This adds a stronger 2026-ready benchmark path beyond the older KDD-only baseline.
                 </div>
             </div>
             """,
@@ -600,7 +631,7 @@ def render_overview_page(dashboard_data: dict):
         f"""
         <div class="card">
             <div class="section-title">System Status</div>
-            <span class="badge">Model: Deep Learning</span>
+            <span class="badge">Model Engine: Deep Learning</span>
             <span class="badge">Database: Connected</span>
             <span class="badge">Live Monitor: {status_text}</span>
             <span class="badge">Role: {dashboard_data.get("role", "user").title()}</span>
@@ -827,7 +858,7 @@ def render_detection_page(dashboard_data: dict):
             st.markdown(f'<div class="{css_class}"><b>{data["summary"]}</b><br>Model path: {data.get("model_name", "kdd").upper()}<br>{data["rationale"]}<br><br>Recommended action: {data["recommended_action"]}</div>', unsafe_allow_html=True)
             st.json(data["probabilities"])
         else:
-            st.error(response.json().get("error", "Prediction failed"))
+            st.error(get_api_error(response, "Prediction failed"))
 
 
 def render_csv_page(dashboard_data: dict):
@@ -854,7 +885,7 @@ def render_csv_page(dashboard_data: dict):
                 st.success(f"Processed {data['total_rows']} rows with {selected_model['key'].upper()}. Intrusions: {data['intrusion_rows']}, Normal: {data['normal_rows']}.")
                 st.dataframe(pd.DataFrame(data["results"]), use_container_width=True)
             else:
-                st.error(response.json().get("error", "CSV analysis failed"))
+                st.error(get_api_error(response, "CSV analysis failed"))
     else:
         st.info("Use `sample_nids_input.csv` as an example input format.")
 
@@ -885,7 +916,7 @@ def render_live_monitor_page(dashboard_data: dict):
                 with st.expander("Extracted live feature record"):
                     st.json(data["feature_record"])
             else:
-                st.error(response.json().get("error", "Live monitoring failed"))
+                st.error(get_api_error(response, "Live monitoring failed"))
         latest_response = api_get("/history")
         if latest_response.ok:
             live_rows = latest_response.json().get("live_events", [])
@@ -911,7 +942,7 @@ def render_live_monitor_page(dashboard_data: dict):
                     st.success("24/7 live monitor started.")
                     st.rerun()
                 else:
-                    st.error(start_response.json().get("error", "Could not start monitor"))
+                    st.error(get_api_error(start_response, "Could not start monitor"))
         with stop_col:
             if st.button("Stop 24/7 Monitor", use_container_width=True, key="live_stop_monitor"):
                 stop_response = api_post("/monitor/stop")
@@ -919,7 +950,7 @@ def render_live_monitor_page(dashboard_data: dict):
                     st.success("24/7 live monitor stopped.")
                     st.rerun()
                 else:
-                    st.error(stop_response.json().get("error", "Could not stop monitor"))
+                    st.error(get_api_error(stop_response, "Could not stop monitor"))
 
 
 def render_ai_analyst_page():
@@ -970,7 +1001,7 @@ def render_ai_assistant_page():
             st.session_state["ai_chat_history"].append({"role": "user", "text": message})
             st.session_state["ai_chat_history"].append({"role": "assistant", "text": reply})
         else:
-            st.error(response.json().get("error", "AI assistant failed"))
+            st.error(get_api_error(response, "AI assistant failed"))
 
     for item in st.session_state["ai_chat_history"][-10:]:
         css = "status-alert" if item["role"] == "assistant" else "card"
@@ -1036,21 +1067,21 @@ def render_alert_settings_page(dashboard_data: dict):
             if start_response.ok:
                 st.success("Continuous monitoring started.")
             else:
-                st.error(start_response.json().get("error", "Could not start monitor"))
+                st.error(get_api_error(start_response, "Could not start monitor"))
     with c2:
         if st.button("Stop 24/7 Monitoring", use_container_width=True):
             stop_response = api_post("/monitor/stop")
             if stop_response.ok:
                 st.success("Continuous monitoring stopped.")
             else:
-                st.error(stop_response.json().get("error", "Could not stop monitor"))
+                st.error(get_api_error(stop_response, "Could not stop monitor"))
     with c3:
         if st.button("Send Test Alert", use_container_width=True):
             test_response = api_post("/alert-settings/test")
             if test_response.ok:
                 st.success(test_response.json().get("message", "Test alert triggered"))
             else:
-                st.error(test_response.json().get("error", "Could not send test alert"))
+                st.error(get_api_error(test_response, "Could not send test alert"))
     running_text = "Running" if dashboard_data.get("monitor_running") else "Stopped"
     st.info(f"Current monitor status: {running_text}")
     st.markdown("</div>", unsafe_allow_html=True)
@@ -1079,7 +1110,7 @@ def render_history_page():
 def render_admin_page():
     response = api_get("/admin/overview")
     if not response.ok:
-        st.error(response.json().get("error", "Admin overview unavailable"))
+        st.error(get_api_error(response, "Admin overview unavailable"))
         return
     data = response.json()
     st.markdown('<div class="card"><div class="section-title">User Overview</div>', unsafe_allow_html=True)
@@ -1095,7 +1126,7 @@ def render_admin_page():
             if reset_response.ok:
                 st.success(f"Password updated for {username}. The user can now log in with the new password.")
             else:
-                st.error(reset_response.json().get("error", "Password reset failed"))
+                st.error(get_api_error(reset_response, "Password reset failed"))
     st.markdown("</div>", unsafe_allow_html=True)
     left, right = st.columns(2)
     with left:

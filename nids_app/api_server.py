@@ -376,8 +376,8 @@ def ai_chat(user):
         )
     elif "model" in lower and ("use" in lower or "using" in lower or "what model" in lower):
         answer = (
-            "The website currently provides a KDD 41-feature model path and can also expose an UNSW-NB15 model path when its artifacts are trained and saved. "
-            "Manual detection is currently optimized for KDD, while CSV analysis can be routed to the selected model."
+            "The website provides both a KDD 41-feature model path and an integrated UNSW-NB15 model path. "
+            "Manual detection remains optimized for the original KDD screen, while CSV analysis and performance review can use the selected KDD or UNSW model."
         )
     elif "summarize" in lower and ("live" in lower or "monitoring" in lower):
         if live_events:
