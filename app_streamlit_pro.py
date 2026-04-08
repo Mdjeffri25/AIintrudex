@@ -1018,7 +1018,7 @@ def render_alert_settings_page(dashboard_data: dict):
         st.error("Could not load alert settings.")
         return
     settings = response.json()
-    st.markdown('<div class="card"><div class="section-title">Alert Settings</div><div class="section-copy">Configure continuous monitoring plus real email and Twilio SMS alerts here. Use comma-separated recipients if you want alerts to go to multiple people such as you and your HOD.</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="card"><div class="section-title">Alert Settings</div><div class="section-copy">Configure continuous monitoring plus real email and Twilio SMS alerts here. Use comma-separated recipients if you want alerts to go to multiple people.</div></div>', unsafe_allow_html=True)
     st.markdown('<div class="card">', unsafe_allow_html=True)
     with st.form("alert_settings_form"):
         monitor_enabled = st.toggle("Enable continuous monitoring", value=bool(settings.get("monitor_enabled")))

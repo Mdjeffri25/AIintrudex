@@ -18,6 +18,7 @@ from .notifier import send_email_alert, send_sms_alert
 
 
 app = Flask(__name__)
+BACKEND_VERSION = "2026-04-08-aiintrudex-v2"
 
 
 def json_error(message: str, status: int = 400):
@@ -41,7 +42,7 @@ def require_auth(fn):
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok"})
+    return jsonify({"status": "ok", "version": BACKEND_VERSION})
 
 
 @app.post("/api/register")
