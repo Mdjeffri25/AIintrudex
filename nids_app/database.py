@@ -111,12 +111,18 @@ def init_db() -> None:
                 smtp_password TEXT,
                 sms_enabled INTEGER NOT NULL DEFAULT 0,
                 sms_number TEXT,
+                twilio_account_sid TEXT,
+                twilio_auth_token TEXT,
+                twilio_messaging_service_sid TEXT,
                 updated_at TEXT NOT NULL,
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
             """
         )
         _ensure_column(conn, "predictions", "model_name", "TEXT NOT NULL DEFAULT 'kdd'")
+        _ensure_column(conn, "alert_settings", "twilio_account_sid", "TEXT")
+        _ensure_column(conn, "alert_settings", "twilio_auth_token", "TEXT")
+        _ensure_column(conn, "alert_settings", "twilio_messaging_service_sid", "TEXT")
 
 
 def _ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:

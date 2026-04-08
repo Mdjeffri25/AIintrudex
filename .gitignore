@@ -4,4 +4,5 @@ __pycache__/
 *.db
 *.db-journal
 .streamlit/secrets.toml
-
+.pycache_tmp/
+unsw_nb15/data/

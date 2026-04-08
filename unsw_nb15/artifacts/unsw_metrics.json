@@ -1,0 +1,90 @@
+{
+  "dataset": "UNSW-NB15",
+  "dataset_columns": 49,
+  "input_features": 42,
+  "test_accuracy": 0.8543701112568625,
+  "test_loss": 0.2534717917442322,
+  "keras_accuracy": 0.8543701171875,
+  "confusion_matrix": [
+    [
+      25722,
+      11278
+    ],
+    [
+      712,
+      44620
+    ]
+  ],
+  "classification_report": {
+    "0": {
+      "precision": 0.9730649920556859,
+      "recall": 0.6951891891891891,
+      "f1-score": 0.8109846454582715,
+      "support": 37000.0
+    },
+    "1": {
+      "precision": 0.7982396507925149,
+      "recall": 0.9842936556957558,
+      "f1-score": 0.8815568507359478,
+      "support": 45332.0
+    },
+    "accuracy": 0.8543701112568625,
+    "macro avg": {
+      "precision": 0.8856523214241003,
+      "recall": 0.8397414224424724,
+      "f1-score": 0.8462707480971097,
+      "support": 82332.0
+    },
+    "weighted avg": {
+      "precision": 0.8768061574574487,
+      "recall": 0.8543701112568625,
+      "f1-score": 0.849841702369893,
+      "support": 82332.0
+    }
+  },
+  "feature_columns": [
+    "dur",
+    "proto",
+    "service",
+    "state",
+    "spkts",
+    "dpkts",
+    "sbytes",
+    "dbytes",
+    "rate",
+    "sttl",
+    "dttl",
+    "sload",
+    "dload",
+    "sloss",
+    "dloss",
+    "sinpkt",
+    "dinpkt",
+    "sjit",
+    "djit",
+    "swin",
+    "stcpb",
+    "dtcpb",
+    "dwin",
+    "tcprtt",
+    "synack",
+    "ackdat",
+    "smean",
+    "dmean",
+    "trans_depth",
+    "response_body_len",
+    "ct_srv_src",
+    "ct_state_ttl",
+    "ct_dst_ltm",
+    "ct_src_dport_ltm",
+    "ct_dst_sport_ltm",
+    "ct_dst_src_ltm",
+    "is_ftp_login",
+    "ct_ftp_cmd",
+    "ct_flw_http_mthd",
+    "ct_src_ltm",
+    "ct_srv_dst",
+    "is_sm_ips_ports"
+  ],
+  "epochs_ran": 21
+}

@@ -130,6 +130,8 @@ def main():
 
     metrics = {
         "dataset": "UNSW-NB15",
+        "dataset_columns": 49,
+        "input_features": len(feature_columns),
         "test_accuracy": float(accuracy_score(y_test, predictions)),
         "test_loss": float(loss),
         "keras_accuracy": float(accuracy),

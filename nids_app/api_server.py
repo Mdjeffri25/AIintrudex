@@ -9,12 +9,12 @@ from flask import Flask, jsonify, request
 from .agent_service import build_prediction_report
 from .analyst_agent import build_ai_brief
 from .audit import write_audit_log
-from .auth import authenticate_user, create_session, create_user, get_user_by_token, update_user_password
+from .auth import authenticate_user, create_session, create_user, ensure_admin_account, get_user_by_token, update_user_password
 from .database import execute, fetch_all, fetch_one, init_db, utc_now
 from .live_monitor import capture_live_window
 from .monitor_manager import monitor_status, start_monitor, stop_monitor
 from .model_service import get_available_models, predict_records
-from .notifier import send_email_alert
+from .notifier import send_email_alert, send_sms_alert
 
 
 app = Flask(__name__)
@@ -59,6 +59,7 @@ def register():
     existing_users = fetch_one("SELECT COUNT(*) AS count FROM users")
     role = "admin" if username.lower() == "admin" or existing_users["count"] == 0 else "user"
     user_id = create_user(username, password, role=role)
+    ensure_admin_account(username)
     token = create_session(user_id)
     write_audit_log("register", {"username": username}, user_id)
     return jsonify({"token": token, "user": {"id": user_id, "username": username, "role": role}})
@@ -539,6 +540,9 @@ def get_alert_settings(user):
                 "smtp_password": "",
                 "sms_enabled": 0,
                 "sms_number": "",
+                "twilio_account_sid": "",
+                "twilio_auth_token": "",
+                "twilio_messaging_service_sid": "",
                 "monitor_running": monitor_status(user["id"])["running"],
             }
         )
@@ -563,6 +567,9 @@ def save_alert_settings(user):
         "smtp_password": payload.get("smtp_password") or "",
         "sms_enabled": int(bool(payload.get("sms_enabled"))),
         "sms_number": payload.get("sms_number") or "",
+        "twilio_account_sid": payload.get("twilio_account_sid") or "",
+        "twilio_auth_token": payload.get("twilio_auth_token") or "",
+        "twilio_messaging_service_sid": payload.get("twilio_messaging_service_sid") or "",
         "updated_at": utc_now(),
     }
     exists = fetch_one("SELECT user_id FROM alert_settings WHERE user_id = ?", (user["id"],))
@@ -572,7 +579,8 @@ def save_alert_settings(user):
             UPDATE alert_settings
             SET monitor_enabled = ?, packet_limit = ?, capture_seconds = ?, email_enabled = ?,
                 email_recipient = ?, smtp_host = ?, smtp_port = ?, smtp_username = ?, smtp_password = ?,
-                sms_enabled = ?, sms_number = ?, updated_at = ?
+                sms_enabled = ?, sms_number = ?, twilio_account_sid = ?, twilio_auth_token = ?,
+                twilio_messaging_service_sid = ?, updated_at = ?
             WHERE user_id = ?
             """,
             (
@@ -587,6 +595,9 @@ def save_alert_settings(user):
                 settings["smtp_password"],
                 settings["sms_enabled"],
                 settings["sms_number"],
+                settings["twilio_account_sid"],
+                settings["twilio_auth_token"],
+                settings["twilio_messaging_service_sid"],
                 settings["updated_at"],
                 user["id"],
             ),
@@ -596,8 +607,9 @@ def save_alert_settings(user):
             """
             INSERT INTO alert_settings
             (user_id, monitor_enabled, packet_limit, capture_seconds, email_enabled, email_recipient,
-             smtp_host, smtp_port, smtp_username, smtp_password, sms_enabled, sms_number, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             smtp_host, smtp_port, smtp_username, smtp_password, sms_enabled, sms_number,
+             twilio_account_sid, twilio_auth_token, twilio_messaging_service_sid, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 user["id"],
@@ -612,6 +624,9 @@ def save_alert_settings(user):
                 settings["smtp_password"],
                 settings["sms_enabled"],
                 settings["sms_number"],
+                settings["twilio_account_sid"],
+                settings["twilio_auth_token"],
+                settings["twilio_messaging_service_sid"],
                 settings["updated_at"],
             ),
         )
@@ -661,10 +676,16 @@ def test_alert_settings(user):
         "The alert system is reachable and the interface test was triggered."
     )
     sent, message = send_email_alert(settings, subject, body)
+    sms_sent, sms_message = send_sms_alert(settings, "AI INTRUDEX test alert: monitoring notifications are configured.")
     write_audit_log("test_alert", {"user_id": user["id"], "sent": sent, "message": message}, user["id"])
-    if sent:
-        return jsonify({"sent": True, "mode": "email", "message": message})
-    return jsonify({"sent": True, "mode": "demo", "message": "Demo alert sent popup shown because email settings are incomplete."})
+    if sent or sms_sent:
+        modes = []
+        if sent:
+            modes.append("email")
+        if sms_sent:
+            modes.append("sms")
+        return jsonify({"sent": True, "mode": "+".join(modes), "message": f"Email: {message} | SMS: {sms_message}"})
+    return jsonify({"sent": True, "mode": "demo", "message": f"Demo alert sent popup shown because delivery settings are incomplete. Email: {message} | SMS: {sms_message}"})
 
 
 def create_app():

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from io import StringIO
 from typing import Dict
 
@@ -10,6 +11,7 @@ import streamlit as st
 import socket
 
 from nids_app.config import API_HOST, API_PORT
+from nids_app.config import UNSW_METRICS_PATH
 from nids_app.constants import FEATURE_COLUMNS
 
 
@@ -68,6 +70,15 @@ REQUIRED_FILES = [
 ]
 
 
+def load_unsw_metrics() -> dict:
+    if not UNSW_METRICS_PATH.exists():
+        return {}
+    try:
+        return json.loads(UNSW_METRICS_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
 def get_model_options(dashboard_data: dict) -> list[dict]:
     options = dashboard_data.get("available_models") or [{"key": "kdd", "label": "KDD 41-Feature Model", "available": True}]
     cleaned = []
@@ -122,6 +133,26 @@ def inject_styles():
         }
         [data-testid="stSidebar"] * {
             color: #f3fbff !important;
+        }
+        [data-testid="stSidebar"] [role="radiogroup"] > label {
+            background: transparent !important;
+            border-radius: 14px !important;
+            padding: 0.3rem 0.55rem !important;
+            margin: 0.08rem 0 0.12rem 0 !important;
+            border: 1px solid transparent !important;
+            transition: all 0.18s ease !important;
+        }
+        [data-testid="stSidebar"] [role="radiogroup"] > label:hover {
+            background: rgba(255,255,255,0.08) !important;
+            border-color: rgba(255,255,255,0.12) !important;
+        }
+        [data-testid="stSidebar"] [role="radiogroup"] > label[data-selected="true"] {
+            background: linear-gradient(135deg, rgba(0, 140, 255, 0.32) 0%, rgba(0, 186, 242, 0.28) 100%) !important;
+            border-color: rgba(255,255,255,0.18) !important;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08) !important;
+        }
+        [data-testid="stSidebar"] [role="radiogroup"] > label p {
+            font-weight: 600 !important;
         }
         header[data-testid="stHeader"] {
             background: transparent !important;
@@ -700,11 +731,25 @@ def render_detection_page(dashboard_data: dict):
     model_labels = [format_model_label(item) for item in model_options]
     selected_label = st.selectbox("Detection Model", model_labels, index=0)
     selected_model = next(item for item in model_options if format_model_label(item) == selected_label)
+    model_key = selected_model["key"]
+    unsw_metrics = load_unsw_metrics() if model_key == "unsw" else {}
+
+    st.markdown('<div class="soft-title">📊 Network Statistics</div>', unsafe_allow_html=True)
+    ns1, ns2, ns3, ns4 = st.columns(4)
+    ns1.metric("Selected Model", "UNSW-NB15" if model_key == "unsw" else "KDD 41")
+    ns2.metric("Dataset Path", f"{unsw_metrics.get('dataset_columns', 49)} columns" if model_key == "unsw" else "41 features")
+    ns3.metric("Predictions Saved", int(dashboard_data.get("prediction_count", 0)))
+    ns4.metric("Intrusions Detected", int(dashboard_data.get("intrusion_count", 0)))
+
     if selected_model["key"] == "unsw":
         if not selected_model["available"]:
             st.warning("UNSW-NB15 is visible in the selector, but its trained artifacts are not available yet. Train the UNSW pipeline first, or switch back to the KDD model.")
         else:
-            st.info("UNSW-NB15 is enabled for CSV-based analysis. Manual detection remains optimized for the KDD 41-feature form.")
+            st.info(
+                f"UNSW-NB15 is trained and ready. This app uses {unsw_metrics.get('dataset_columns', 49)} UNSW dataset columns and "
+                f"{unsw_metrics.get('input_features', 42)} learned input features for the UNSW model path. "
+                "Manual form entry remains optimized for the KDD 41-feature screen, while UNSW works best with CSV-based analysis."
+            )
 
     defaults = {
         "duration": 0, "protocol_type": "tcp", "service": "http", "flag": "SF", "src_bytes": 181, "dst_bytes": 5450,
@@ -787,6 +832,7 @@ def render_detection_page(dashboard_data: dict):
 
 def render_csv_page(dashboard_data: dict):
     st.markdown('<div class="card"><div class="section-title">CSV Prediction</div><div class="section-copy">Upload a CSV file with the required 41 traffic feature columns to analyze multiple records at once.</div></div>', unsafe_allow_html=True)
+    st.caption("CSV analysis is real analysis of the uploaded file contents. It is not dummy data, but it is not live packet capture unless the CSV came from a real traffic export.")
     model_options = get_model_options(dashboard_data)
     model_labels = [format_model_label(item) for item in model_options]
     selected_label = st.selectbox("CSV Analysis Model", model_labels, index=0, key="csv_model_selector")
@@ -816,6 +862,7 @@ def render_csv_page(dashboard_data: dict):
 def render_live_monitor_page(dashboard_data: dict):
     st.markdown('<div class="card"><div class="section-title">Live Monitoring</div><div class="section-copy">This feature captures packets from the machine or server where the backend is running. It extracts a live feature record, then sends that record to the deep learning model.</div></div>', unsafe_allow_html=True)
     st.info(f"Monitoring host local IP: {get_monitoring_host_ip()}")
+    st.caption("This is real live capture from the monitoring machine. The prediction is real, but it is based on a short capture window from that machine's current traffic, not dummy values.")
     st.caption("The source and destination IPs shown after capture are the most active addresses seen in the live traffic window on the monitoring machine.")
     interface = st.text_input("Interface name (leave blank for default)")
     packet_limit = st.slider("Packet limit", 10, 150, 30)
@@ -856,6 +903,23 @@ def render_live_monitor_page(dashboard_data: dict):
     with c2:
         monitor_state = "Running" if dashboard_data.get("monitor_running") else "Stopped"
         st.metric("24/7 Monitor Status", monitor_state)
+        start_col, stop_col = st.columns(2)
+        with start_col:
+            if st.button("Start 24/7 Monitor", use_container_width=True, key="live_start_monitor"):
+                start_response = api_post("/monitor/start")
+                if start_response.ok:
+                    st.success("24/7 live monitor started.")
+                    st.rerun()
+                else:
+                    st.error(start_response.json().get("error", "Could not start monitor"))
+        with stop_col:
+            if st.button("Stop 24/7 Monitor", use_container_width=True, key="live_stop_monitor"):
+                stop_response = api_post("/monitor/stop")
+                if stop_response.ok:
+                    st.success("24/7 live monitor stopped.")
+                    st.rerun()
+                else:
+                    st.error(stop_response.json().get("error", "Could not stop monitor"))
 
 
 def render_ai_analyst_page():
@@ -923,7 +987,7 @@ def render_alert_settings_page(dashboard_data: dict):
         st.error("Could not load alert settings.")
         return
     settings = response.json()
-    st.markdown('<div class="card"><div class="section-title">Alert Settings</div><div class="section-copy">Configure continuous monitoring and email alerts here. SMS fields are placeholders for future integration.</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="card"><div class="section-title">Alert Settings</div><div class="section-copy">Configure continuous monitoring plus real email and Twilio SMS alerts here. Use comma-separated recipients if you want alerts to go to multiple people such as you and your HOD.</div></div>', unsafe_allow_html=True)
     st.markdown('<div class="card">', unsafe_allow_html=True)
     with st.form("alert_settings_form"):
         monitor_enabled = st.toggle("Enable continuous monitoring", value=bool(settings.get("monitor_enabled")))
@@ -931,14 +995,17 @@ def render_alert_settings_page(dashboard_data: dict):
         capture_seconds = st.slider("Capture seconds per cycle", 5, 30, int(settings.get("capture_seconds", 10)))
         st.markdown("### Email Alerts")
         email_enabled = st.toggle("Enable email alerts", value=bool(settings.get("email_enabled")))
-        email_recipient = st.text_input("Recipient email", value=settings.get("email_recipient", ""))
+        email_recipient = st.text_input("Recipient email(s)", value=settings.get("email_recipient", ""), help="Use comma-separated emails to alert multiple users.")
         smtp_host = st.text_input("SMTP host", value=settings.get("smtp_host", "smtp.gmail.com"))
         smtp_port = st.number_input("SMTP port", min_value=1, max_value=65535, value=int(settings.get("smtp_port", 587)))
         smtp_username = st.text_input("SMTP username", value=settings.get("smtp_username", ""))
         smtp_password = st.text_input("SMTP password / app password", type="password", value=settings.get("smtp_password", ""))
-        st.markdown("### SMS Placeholder")
-        sms_enabled = st.toggle("Enable SMS placeholder", value=bool(settings.get("sms_enabled")))
-        sms_number = st.text_input("SMS number", value=settings.get("sms_number", ""))
+        st.markdown("### Twilio SMS Alerts")
+        sms_enabled = st.toggle("Enable SMS alerts", value=bool(settings.get("sms_enabled")))
+        sms_number = st.text_input("Recipient phone number(s)", value=settings.get("sms_number", ""), help="Use comma-separated phone numbers in E.164 format, like +9198xxxxxx.")
+        twilio_account_sid = st.text_input("Twilio Account SID", value=settings.get("twilio_account_sid", ""), type="password")
+        twilio_auth_token = st.text_input("Twilio Auth Token", value=settings.get("twilio_auth_token", ""), type="password")
+        twilio_messaging_service_sid = st.text_input("Twilio Messaging Service SID", value=settings.get("twilio_messaging_service_sid", ""), type="password")
         submitted = st.form_submit_button("Save Settings", use_container_width=True)
     if submitted:
         payload = {
@@ -953,13 +1020,16 @@ def render_alert_settings_page(dashboard_data: dict):
             "smtp_password": smtp_password,
             "sms_enabled": sms_enabled,
             "sms_number": sms_number,
+            "twilio_account_sid": twilio_account_sid,
+            "twilio_auth_token": twilio_auth_token,
+            "twilio_messaging_service_sid": twilio_messaging_service_sid,
         }
         save_response = api_post("/alert-settings", payload)
         if save_response.ok:
             st.success("Alert settings saved.")
         else:
             st.error(save_response.json().get("error", "Could not save settings"))
-    c1, c2 = st.columns(2)
+    c1, c2, c3 = st.columns(3)
     with c1:
         if st.button("Start 24/7 Monitoring", use_container_width=True):
             start_response = api_post("/monitor/start")
@@ -974,6 +1044,13 @@ def render_alert_settings_page(dashboard_data: dict):
                 st.success("Continuous monitoring stopped.")
             else:
                 st.error(stop_response.json().get("error", "Could not stop monitor"))
+    with c3:
+        if st.button("Send Test Alert", use_container_width=True):
+            test_response = api_post("/alert-settings/test")
+            if test_response.ok:
+                st.success(test_response.json().get("message", "Test alert triggered"))
+            else:
+                st.error(test_response.json().get("error", "Could not send test alert"))
     running_text = "Running" if dashboard_data.get("monitor_running") else "Stopped"
     st.info(f"Current monitor status: {running_text}")
     st.markdown("</div>", unsafe_allow_html=True)
@@ -1040,44 +1117,115 @@ def render_model_performance_page(dashboard_data: dict):
         key="performance_model_selector",
     )
     selected_model = next(item for item in model_options if format_model_label(item) == selected_label)
+    unsw_metrics = load_unsw_metrics() if selected_model["key"] == "unsw" else {}
     st.markdown(
         f'<div class="card"><div class="section-title">Model Performance</div><div class="section-copy">Detailed performance view for the selected model path: <b>{selected_model["label"]}</b>.</div></div>',
         unsafe_allow_html=True,
     )
     if selected_model["key"] == "unsw" and not selected_model["available"]:
         st.warning("UNSW-NB15 performance charts will appear here after the UNSW training pipeline is run and the artifacts are saved in unsw_nb15/artifacts/.")
+    if selected_model["key"] == "unsw" and selected_model["available"]:
+        report = unsw_metrics.get("classification_report", {})
+        row0 = report.get("0", {})
+        row1 = report.get("1", {})
+        rows = pd.DataFrame(
+            [
+                {
+                    "Class": "0",
+                    "Precision": round(float(row0.get("precision", 0.0)), 4),
+                    "Recall": round(float(row0.get("recall", 0.0)), 4),
+                    "F1-Score": round(float(row0.get("f1-score", 0.0)), 4),
+                    "Support": int(row0.get("support", 0)),
+                },
+                {
+                    "Class": "1",
+                    "Precision": round(float(row1.get("precision", 0.0)), 4),
+                    "Recall": round(float(row1.get("recall", 0.0)), 4),
+                    "F1-Score": round(float(row1.get("f1-score", 0.0)), 4),
+                    "Support": int(row1.get("support", 0)),
+                },
+            ]
+        )
+        architecture_rows = [
+            f"Input Layer: {unsw_metrics.get('input_features', 42)} learned features from {unsw_metrics.get('dataset_columns', 49)} UNSW columns",
+            "Hidden Layer 1: 128 neurons (ReLU) + BatchNorm + Dropout 30%",
+            "Hidden Layer 2: 64 neurons (ReLU) + BatchNorm + Dropout 30%",
+            "Hidden Layer 3: 32 neurons (ReLU) + BatchNorm + Dropout 20%",
+            "Output Layer: Softmax with 2 classes",
+        ]
+        confusion_matrix = unsw_metrics.get("confusion_matrix", [[0, 0], [0, 0]])
+        accuracy = float(unsw_metrics.get("test_accuracy", 0.0))
+        test_loss = float(unsw_metrics.get("test_loss", 0.0))
+        epochs_ran = int(unsw_metrics.get("epochs_ran", 0))
+        precision = float(report.get("weighted avg", {}).get("precision", 0.0))
+        recall = float(report.get("weighted avg", {}).get("recall", 0.0))
+    else:
+        rows = PERFORMANCE_ROWS
+        architecture_rows = MODEL_ARCHITECTURE
+        confusion_matrix = CONFUSION_MATRIX
+        accuracy = 0.9893
+        test_loss = 0.0265
+        epochs_ran = 21
+        precision = 0.99
+        recall = 0.99
 
     left, right = st.columns([1.15, 1])
     with left:
         st.markdown('<div class="card"><div class="section-title">Model Architecture</div>', unsafe_allow_html=True)
-        for row in MODEL_ARCHITECTURE:
+        for row in architecture_rows:
             st.write(f"- {row}")
         st.markdown("</div>", unsafe_allow_html=True)
     with right:
         st.markdown('<div class="card"><div class="section-title">Classification Report</div>', unsafe_allow_html=True)
-        st.dataframe(PERFORMANCE_ROWS, use_container_width=True)
+        st.dataframe(rows, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
-    c1.metric("Accuracy", "98.93%")
-    c2.metric("Precision", "99%")
-    c3.metric("Recall", "99%")
+    c1.metric("Accuracy", f"{accuracy * 100:.2f}%")
+    c2.metric("Precision", f"{precision * 100:.2f}%")
+    c3.metric("Recall", f"{recall * 100:.2f}%")
     s1, s2, s3 = st.columns(3)
-    s1.metric("Dataset", "KDD 41", "Active baseline")
-    s2.metric("Test Loss", "0.0265")
-    s3.metric("Epochs", "21", "Early stopped")
+    s1.metric("Dataset", "UNSW-NB15" if selected_model["key"] == "unsw" else "KDD 41")
+    s2.metric("Test Loss", f"{test_loss:.4f}")
+    s3.metric("Epochs", str(epochs_ran), "Trained")
     fig_acc = go.Figure()
-    fig_acc.add_trace(go.Scatter(x=TRAIN_EPOCHS, y=TRAIN_ACC, mode="lines+markers", name="Training Accuracy", line=dict(color="#0057d8", width=3)))
-    fig_acc.add_trace(go.Scatter(x=TRAIN_EPOCHS, y=VAL_ACC, mode="lines+markers", name="Validation Accuracy", line=dict(color="#00a8f0", width=3)))
-    fig_acc.update_layout(title="Training History - Accuracy", height=360, paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#163252"))
-    fig_loss = go.Figure()
-    fig_loss.add_trace(go.Scatter(x=TRAIN_EPOCHS, y=TRAIN_LOSS, mode="lines+markers", name="Training Loss", line=dict(color="#ff6b6b", width=3)))
-    fig_loss.add_trace(go.Scatter(x=TRAIN_EPOCHS, y=VAL_LOSS, mode="lines+markers", name="Validation Loss", line=dict(color="#7b61ff", width=3)))
-    fig_loss.update_layout(title="Training History - Loss", height=360, paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#163252"))
+    if selected_model["key"] == "unsw" and selected_model["available"]:
+        fig_acc.add_trace(
+            go.Bar(
+                x=["Accuracy", "Precision", "Recall", "F1"],
+                y=[
+                    accuracy * 100,
+                    precision * 100,
+                    recall * 100,
+                    float(report.get("weighted avg", {}).get("f1-score", 0.0)) * 100,
+                ],
+                marker_color=["#0057d8", "#00a8f0", "#17b978", "#7b61ff"],
+                name="UNSW Metrics",
+            )
+        )
+        fig_acc.update_layout(title="UNSW-NB15 Evaluation Metrics", height=360, paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#163252"))
+        fig_loss = go.Figure()
+        fig_loss.add_trace(
+            go.Bar(
+                x=["Test Loss", "Epochs Ran"],
+                y=[test_loss, epochs_ran],
+                marker_color=["#ff6b6b", "#7b61ff"],
+                name="UNSW Summary",
+            )
+        )
+        fig_loss.update_layout(title="UNSW Training Summary", height=360, paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#163252"))
+    else:
+        fig_acc.add_trace(go.Scatter(x=TRAIN_EPOCHS, y=TRAIN_ACC, mode="lines+markers", name="Training Accuracy", line=dict(color="#0057d8", width=3)))
+        fig_acc.add_trace(go.Scatter(x=TRAIN_EPOCHS, y=VAL_ACC, mode="lines+markers", name="Validation Accuracy", line=dict(color="#00a8f0", width=3)))
+        fig_acc.update_layout(title="Training History - Accuracy", height=360, paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#163252"))
+        fig_loss = go.Figure()
+        fig_loss.add_trace(go.Scatter(x=TRAIN_EPOCHS, y=TRAIN_LOSS, mode="lines+markers", name="Training Loss", line=dict(color="#ff6b6b", width=3)))
+        fig_loss.add_trace(go.Scatter(x=TRAIN_EPOCHS, y=VAL_LOSS, mode="lines+markers", name="Validation Loss", line=dict(color="#7b61ff", width=3)))
+        fig_loss.update_layout(title="Training History - Loss", height=360, paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#163252"))
     heatmap = go.Figure(data=go.Heatmap(
-        z=CONFUSION_MATRIX,
-        x=["Predicted anomaly", "Predicted normal"],
-        y=["Actual anomaly", "Actual normal"],
-        text=CONFUSION_MATRIX,
+        z=confusion_matrix,
+        x=["Predicted 0", "Predicted 1"] if selected_model["key"] == "unsw" else ["Predicted anomaly", "Predicted normal"],
+        y=["Actual 0", "Actual 1"] if selected_model["key"] == "unsw" else ["Actual anomaly", "Actual normal"],
+        text=confusion_matrix,
         texttemplate="%{text}",
         colorscale="Blues"
     ))

@@ -17,7 +17,24 @@ def create_user(username: str, password: str, role: str = "user") -> int:
     )
 
 
+def ensure_admin_account(preferred_username: str | None = None) -> None:
+    admin_count = fetch_one("SELECT COUNT(*) AS count FROM users WHERE role = 'admin'")
+    if admin_count and admin_count["count"] > 0:
+        return
+
+    candidate = None
+    if preferred_username:
+        candidate = fetch_one("SELECT id FROM users WHERE lower(username) = lower(?)", (preferred_username,))
+    if not candidate:
+        candidate = fetch_one("SELECT id FROM users WHERE lower(username) = 'admin' ORDER BY id DESC LIMIT 1")
+    if not candidate:
+        candidate = fetch_one("SELECT id FROM users ORDER BY id DESC LIMIT 1")
+    if candidate:
+        execute("UPDATE users SET role = 'admin' WHERE id = ?", (candidate["id"],))
+
+
 def authenticate_user(username: str, password: str) -> Optional[dict]:
+    ensure_admin_account(username)
     row = fetch_one("SELECT * FROM users WHERE username = ?", (username,))
     if not row:
         return None

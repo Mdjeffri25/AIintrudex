@@ -108,12 +108,16 @@ def predict_kdd_records(records: List[Dict[str, Any]]) -> List[PredictionResult]
 def get_available_models() -> list[dict]:
     models = [{"key": "kdd", "label": "KDD 41-Feature Model", "available": True}]
     try:
-        from .unsw_service import get_unsw_feature_columns, unsw_available
+        from .unsw_service import get_unsw_feature_columns, load_unsw_metadata, unsw_available
+
+        metadata = load_unsw_metadata()
+        dataset_columns = int(metadata.get("dataset_columns", 49) or 49)
+        input_features = len(get_unsw_feature_columns()) or 42
 
         models.append(
             {
                 "key": "unsw",
-                "label": f"UNSW-NB15 Model ({len(get_unsw_feature_columns()) or 49} features)",
+                "label": f"UNSW-NB15 Model ({dataset_columns}-column dataset / {input_features} input features)",
                 "available": bool(unsw_available()),
             }
         )

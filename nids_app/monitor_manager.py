@@ -8,7 +8,7 @@ from typing import Dict
 from .audit import write_audit_log
 from .database import execute, fetch_one, utc_now
 from .live_monitor import capture_live_window
-from .notifier import send_email_alert
+from .notifier import send_email_alert, send_sms_alert
 
 
 @dataclass
@@ -75,6 +75,15 @@ def _run_monitor_loop(user_id: int, stop_event: threading.Event) -> None:
                     f"Recommended action: {result['recommended_action']}\n"
                 )
                 send_email_alert(settings, subject, body)
+                send_sms_alert(
+                    settings,
+                    (
+                        f"AI INTRUDEX ALERT: {result['predicted_label']} "
+                        f"({result['confidence']:.2f}%). "
+                        f"Severity {result['severity']}. "
+                        f"Source {result['source_ip']} -> {result['destination_ip']}."
+                    ),
+                )
         except Exception as exc:
             write_audit_log("continuous_monitor_error", {"user_id": user_id, "error": str(exc)}, user_id)
 
