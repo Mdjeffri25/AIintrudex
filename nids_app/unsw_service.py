@@ -7,7 +7,6 @@ from typing import Any, Dict, List
 import joblib
 import numpy as np
 import pandas as pd
-from tensorflow import keras
 
 from .config import (
     UNSW_LABEL_ENCODERS_PATH,
@@ -47,6 +46,8 @@ def load_unsw_artifacts():
         raise FileNotFoundError(
             "UNSW-NB15 artifacts are not available yet. Run python unsw_nb15/train_unsw_nb15.py after placing the dataset files."
         )
+    from tensorflow import keras
+
     model = keras.models.load_model(UNSW_MODEL_PATH)
     scaler = joblib.load(UNSW_SCALER_PATH)
     label_encoders = joblib.load(UNSW_LABEL_ENCODERS_PATH)

@@ -10,7 +10,7 @@ from app_streamlit_pro import main
 from nids_app.api_server import app as backend_app
 from nids_app.database import init_db
 
-REQUIRED_BACKEND_VERSION = "2026-04-08-aiintrudex-v2"
+REQUIRED_BACKEND_VERSION = "2026-04-09-aiintrudex-v3"
 
 
 def _run_backend():

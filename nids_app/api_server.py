@@ -18,7 +18,7 @@ from .notifier import send_email_alert, send_sms_alert
 
 
 app = Flask(__name__)
-BACKEND_VERSION = "2026-04-08-aiintrudex-v2"
+BACKEND_VERSION = "2026-04-09-aiintrudex-v3"
 
 
 def json_error(message: str, status: int = 400):

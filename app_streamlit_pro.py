@@ -11,7 +11,13 @@ import streamlit as st
 import socket
 
 from nids_app.config import API_HOST, API_PORT
-from nids_app.config import UNSW_METRICS_PATH
+from nids_app.config import (
+    UNSW_LABEL_ENCODERS_PATH,
+    UNSW_METRICS_PATH,
+    UNSW_MODEL_PATH,
+    UNSW_SCALER_PATH,
+    UNSW_TARGET_ENCODER_PATH,
+)
 from nids_app.constants import FEATURE_COLUMNS
 
 
@@ -90,6 +96,31 @@ def get_model_options(dashboard_data: dict) -> list[dict]:
                 "available": bool(item.get("available", False)),
             }
         )
+    existing_keys = {item["key"] for item in cleaned}
+    if "unsw" not in existing_keys:
+        try:
+            metadata = load_unsw_metrics()
+            dataset_columns = int(metadata.get("dataset_columns", 49) or 49)
+            input_features = len(metadata.get("feature_columns", []) or []) or int(metadata.get("input_features", 42) or 42)
+            unsw_ready = all(
+                path.exists()
+                for path in [
+                    UNSW_MODEL_PATH,
+                    UNSW_SCALER_PATH,
+                    UNSW_LABEL_ENCODERS_PATH,
+                    UNSW_TARGET_ENCODER_PATH,
+                    UNSW_METRICS_PATH,
+                ]
+            )
+            cleaned.append(
+                {
+                    "key": "unsw",
+                    "label": f"UNSW-NB15 Model ({dataset_columns}-column dataset / {input_features} input features)",
+                    "available": bool(unsw_ready),
+                }
+            )
+        except Exception:
+            cleaned.append({"key": "unsw", "label": "UNSW-NB15 Model (49-feature dataset path)", "available": False})
     return cleaned
 
 
@@ -109,6 +140,20 @@ def api_post(path: str, payload: dict | None = None):
 
 def api_get(path: str):
     return requests.get(f"{API_BASE}{path}", headers=api_headers(), timeout=120)
+
+
+def render_sidebar_navigation(pages: list[str]) -> str:
+    if "selected_page" not in st.session_state or st.session_state["selected_page"] not in pages:
+        st.session_state["selected_page"] = pages[0]
+
+    current_page = st.session_state["selected_page"]
+    st.markdown("### Select Page")
+    for page in pages:
+        button_label = f"▸ {page}" if page == current_page else page
+        if st.button(button_label, key=f"nav_{page.lower().replace(' ', '_')}", use_container_width=True):
+            st.session_state["selected_page"] = page
+            st.rerun()
+    return st.session_state["selected_page"]
 
 
 def get_api_error(response, fallback: str) -> str:
@@ -862,7 +907,7 @@ def render_detection_page(dashboard_data: dict):
 
 
 def render_csv_page(dashboard_data: dict):
-    st.markdown('<div class="card"><div class="section-title">CSV Prediction</div><div class="section-copy">Upload a CSV file with the required 41 traffic feature columns to analyze multiple records at once.</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="card"><div class="section-title">CSV Prediction</div><div class="section-copy">Upload a KDD or UNSW-formatted CSV file to analyze multiple records at once with the selected model path.</div></div>', unsafe_allow_html=True)
     st.caption("CSV analysis is real analysis of the uploaded file contents. It is not dummy data, but it is not live packet capture unless the CSV came from a real traffic export.")
     model_options = get_model_options(dashboard_data)
     model_labels = [format_model_label(item) for item in model_options]
@@ -872,7 +917,7 @@ def render_csv_page(dashboard_data: dict):
         if selected_model["available"]:
             st.info("Upload a UNSW-NB15 formatted CSV to analyze with the UNSW model path.")
         else:
-            st.warning("UNSW-NB15 artifacts are not available yet. Train the UNSW pipeline first or use the KDD model.")
+            st.warning("UNSW-NB15 artifacts are not available yet in the active backend session. Reboot the app or switch back to the KDD model.")
     uploaded = st.file_uploader("Upload CSV file", type=["csv"])
     if uploaded:
         content = uploaded.getvalue().decode("utf-8")
@@ -1330,7 +1375,7 @@ def main():
         pages = ["Overview", "Intrusion Detection", "CSV Prediction", "Live Monitor", "AI Analyst", "AI Assistant", "Notifications", "Reports", "Alert Settings", "History", "Model Performance"]
         if dashboard_data.get("role") == "admin":
             pages.append("Admin Dashboard")
-        page = st.radio("Select Page", pages)
+        page = render_sidebar_navigation(pages)
         st.caption(f"Logged in as {st.session_state.user['username']} ({dashboard_data.get('role', 'user')})")
         if st.button("Logout", use_container_width=True):
             st.session_state.clear()

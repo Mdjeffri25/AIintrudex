@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
+import json
 from typing import Any, Dict, List
 
 import joblib
@@ -10,7 +11,18 @@ import pandas as pd
 from tensorflow import keras
 from tensorflow.keras import layers
 
-from .config import LABEL_ENCODERS_PATH, MODEL_PATH, MODEL_WEIGHTS_PATH, SCALER_PATH, TARGET_ENCODER_PATH
+from .config import (
+    LABEL_ENCODERS_PATH,
+    MODEL_PATH,
+    MODEL_WEIGHTS_PATH,
+    SCALER_PATH,
+    TARGET_ENCODER_PATH,
+    UNSW_LABEL_ENCODERS_PATH,
+    UNSW_METRICS_PATH,
+    UNSW_MODEL_PATH,
+    UNSW_SCALER_PATH,
+    UNSW_TARGET_ENCODER_PATH,
+)
 from .constants import CATEGORICAL_COLUMNS, FEATURE_COLUMNS
 
 
@@ -107,22 +119,31 @@ def predict_kdd_records(records: List[Dict[str, Any]]) -> List[PredictionResult]
 
 def get_available_models() -> list[dict]:
     models = [{"key": "kdd", "label": "KDD 41-Feature Model", "available": True}]
+    metadata: dict[str, Any] = {}
     try:
-        from .unsw_service import get_unsw_feature_columns, load_unsw_metadata, unsw_available
-
-        metadata = load_unsw_metadata()
-        dataset_columns = int(metadata.get("dataset_columns", 49) or 49)
-        input_features = len(get_unsw_feature_columns()) or 42
-
-        models.append(
-            {
-                "key": "unsw",
-                "label": f"UNSW-NB15 Model ({dataset_columns}-column dataset / {input_features} input features)",
-                "available": bool(unsw_available()),
-            }
-        )
+        if UNSW_METRICS_PATH.exists():
+            metadata = json.loads(UNSW_METRICS_PATH.read_text(encoding="utf-8"))
     except Exception:
-        models.append({"key": "unsw", "label": "UNSW-NB15 Model (49 features)", "available": False})
+        metadata = {}
+    dataset_columns = int(metadata.get("dataset_columns", 49) or 49)
+    input_features = len(metadata.get("feature_columns", []) or []) or int(metadata.get("input_features", 42) or 42)
+    unsw_ready = all(
+        path.exists()
+        for path in [
+            UNSW_MODEL_PATH,
+            UNSW_SCALER_PATH,
+            UNSW_LABEL_ENCODERS_PATH,
+            UNSW_TARGET_ENCODER_PATH,
+            UNSW_METRICS_PATH,
+        ]
+    )
+    models.append(
+        {
+            "key": "unsw",
+            "label": f"UNSW-NB15 Model ({dataset_columns}-column dataset / {input_features} input features)",
+            "available": bool(unsw_ready),
+        }
+    )
     return models
 
 
