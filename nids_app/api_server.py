@@ -206,6 +206,7 @@ def live_monitor(user):
     try:
         result = capture_live_window(interface=interface, packet_limit=packet_limit, timeout=timeout)
     except LiveCaptureError:
+        write_audit_log("live_monitor_error", {"user_id": user["id"], "error": "permission_denied"}, user["id"])
         return json_error(LIVE_CAPTURE_PERMISSION_HELP, 403)
     except Exception:
         return json_error(

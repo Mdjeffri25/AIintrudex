@@ -90,6 +90,10 @@ def _run_monitor_loop(user_id: int, stop_event: threading.Event) -> None:
                 {"user_id": user_id, "error": str(exc), "stopped": True},
                 user_id,
             )
+            execute(
+                "UPDATE alert_settings SET monitor_enabled = 0, updated_at = ? WHERE user_id = ?",
+                (utc_now(), user_id),
+            )
             break
         except Exception as exc:
             write_audit_log(
