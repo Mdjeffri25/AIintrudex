@@ -11,7 +11,7 @@ from .analyst_agent import build_ai_brief
 from .audit import write_audit_log
 from .auth import authenticate_user, create_session, create_user, ensure_admin_account, get_user_by_token, update_user_password
 from .database import execute, fetch_all, fetch_one, init_db, utc_now
-from .live_monitor import capture_live_window
+from .live_monitor import LiveCaptureError, capture_live_window
 from .monitor_manager import monitor_status, start_monitor, stop_monitor
 from .model_service import get_available_models, predict_records
 from .notifier import send_email_alert, send_sms_alert
@@ -204,6 +204,8 @@ def live_monitor(user):
 
     try:
         result = capture_live_window(interface=interface, packet_limit=packet_limit, timeout=timeout)
+    except LiveCaptureError as exc:
+        return json_error(str(exc), 403)
     except Exception as exc:
         return json_error(f"Live capture failed: {exc}", 500)
 

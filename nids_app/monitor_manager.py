@@ -7,7 +7,7 @@ from typing import Dict
 
 from .audit import write_audit_log
 from .database import execute, fetch_one, utc_now
-from .live_monitor import capture_live_window
+from .live_monitor import LiveCaptureError, capture_live_window
 from .notifier import send_email_alert, send_sms_alert
 
 
@@ -84,6 +84,13 @@ def _run_monitor_loop(user_id: int, stop_event: threading.Event) -> None:
                         f"Source {result['source_ip']} -> {result['destination_ip']}."
                     ),
                 )
+        except LiveCaptureError as exc:
+            write_audit_log(
+                "continuous_monitor_error",
+                {"user_id": user_id, "error": str(exc), "stopped": True},
+                user_id,
+            )
+            break
         except Exception as exc:
             write_audit_log("continuous_monitor_error", {"user_id": user_id, "error": str(exc)}, user_id)
 

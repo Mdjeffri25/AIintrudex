@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 from collections import Counter
 from typing import Any, Dict
 
@@ -23,6 +24,18 @@ SERVICE_PORT_MAP = {
     179: "bgp",
     443: "http_443",
 }
+
+
+class LiveCaptureError(RuntimeError):
+    pass
+
+
+def _permission_help() -> str:
+    return (
+        "Live capture requires elevated packet-capture permissions. "
+        "Run the backend with administrator/root privileges or install Npcap on Windows. "
+        "Hosted environments like Streamlit Cloud do not allow live packet capture."
+    )
 
 
 def _tcp_flag_to_kdd_flag(packet) -> str:
@@ -60,7 +73,14 @@ def _protocol_name(packet) -> str:
 
 
 def capture_live_window(interface: str | None = None, packet_limit: int = 30, timeout: int = 10) -> Dict[str, Any]:
-    packets = sniff(iface=interface or None, count=packet_limit, timeout=timeout, store=True)
+    try:
+        packets = sniff(iface=interface or None, count=packet_limit, timeout=timeout, store=True)
+    except PermissionError as exc:
+        raise LiveCaptureError(_permission_help()) from exc
+    except OSError as exc:
+        if getattr(exc, "errno", None) in {errno.EPERM, errno.EACCES}:
+            raise LiveCaptureError(_permission_help()) from exc
+        raise
 
     packet_count = len(packets)
     bytes_seen = sum(len(packet) for packet in packets)
