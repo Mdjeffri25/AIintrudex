@@ -206,8 +206,8 @@ def live_monitor(user):
         result = capture_live_window(interface=interface, packet_limit=packet_limit, timeout=timeout)
     except LiveCaptureError as exc:
         return json_error(str(exc), 403)
-    except Exception as exc:
-        return json_error(f"Live capture failed: {exc}", 500)
+    except Exception:
+        return json_error("Live capture failed. Check server logs for details.", 500)
 
     event_id = execute(
         """

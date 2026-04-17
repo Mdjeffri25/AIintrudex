@@ -43,3 +43,9 @@ FEATURE_COLUMNS = [
 ]
 
 CATEGORICAL_COLUMNS = ["protocol_type", "service", "flag"]
+
+LIVE_CAPTURE_PERMISSION_HELP = (
+    "Live capture requires elevated packet-capture permissions. "
+    "Run the backend with administrator/root privileges or install Npcap on Windows. "
+    "Hosted environments like Streamlit Cloud do not allow live packet capture."
+)

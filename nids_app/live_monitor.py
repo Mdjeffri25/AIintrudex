@@ -7,6 +7,7 @@ from typing import Any, Dict
 from scapy.all import ICMP, IP, TCP, UDP, sniff
 
 from .agent_service import build_prediction_report
+from .constants import LIVE_CAPTURE_PERMISSION_HELP
 from .model_service import predict_records
 
 
@@ -27,15 +28,7 @@ SERVICE_PORT_MAP = {
 
 
 class LiveCaptureError(RuntimeError):
-    pass
-
-
-def _permission_help() -> str:
-    return (
-        "Live capture requires elevated packet-capture permissions. "
-        "Run the backend with administrator/root privileges or install Npcap on Windows. "
-        "Hosted environments like Streamlit Cloud do not allow live packet capture."
-    )
+    """Raised when live packet capture is unavailable or denied by permissions."""
 
 
 def _tcp_flag_to_kdd_flag(packet) -> str:
@@ -76,10 +69,10 @@ def capture_live_window(interface: str | None = None, packet_limit: int = 30, ti
     try:
         packets = sniff(iface=interface or None, count=packet_limit, timeout=timeout, store=True)
     except PermissionError as exc:
-        raise LiveCaptureError(_permission_help()) from exc
+        raise LiveCaptureError(LIVE_CAPTURE_PERMISSION_HELP) from exc
     except OSError as exc:
         if getattr(exc, "errno", None) in {errno.EPERM, errno.EACCES}:
-            raise LiveCaptureError(_permission_help()) from exc
+            raise LiveCaptureError(LIVE_CAPTURE_PERMISSION_HELP) from exc
         raise
 
     packet_count = len(packets)
