@@ -208,7 +208,12 @@ def live_monitor(user):
     except LiveCaptureError:
         write_audit_log("live_monitor_error", {"user_id": user["id"], "error": "permission_denied"}, user["id"])
         return json_error(LIVE_CAPTURE_PERMISSION_HELP, 403)
-    except Exception:
+    except Exception as exc:
+        write_audit_log(
+            "live_monitor_error",
+            {"user_id": user["id"], "error": str(exc), "type": type(exc).__name__},
+            user["id"],
+        )
         return json_error(
             "Live capture failed due to a backend error. Verify the interface name and packet-capture permissions.",
             500,
