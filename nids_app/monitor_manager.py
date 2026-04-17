@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Dict
 
 from .audit import write_audit_log
+from .constants import LIVE_CAPTURE_PERMISSION_HELP
 from .database import execute, fetch_one, utc_now
 from .live_monitor import LiveCaptureError, capture_live_window
 from .notifier import send_email_alert, send_sms_alert
@@ -93,6 +94,16 @@ def _run_monitor_loop(user_id: int, stop_event: threading.Event) -> None:
             execute(
                 "UPDATE alert_settings SET monitor_enabled = 0, updated_at = ? WHERE user_id = ?",
                 (utc_now(), user_id),
+            )
+            subject = "NIDS Monitor Stopped: Permission Error"
+            body = (
+                "Live monitoring stopped because packet capture permissions are unavailable.\n\n"
+                f"{LIVE_CAPTURE_PERMISSION_HELP}"
+            )
+            send_email_alert(settings, subject, body)
+            send_sms_alert(
+                settings,
+                "AI INTRUDEX: Live monitoring stopped due to packet capture permission error.",
             )
             break
         except Exception as exc:

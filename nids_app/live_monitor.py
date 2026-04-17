@@ -68,8 +68,6 @@ def _protocol_name(packet) -> str:
 def capture_live_window(interface: str | None = None, packet_limit: int = 30, timeout: int = 10) -> Dict[str, Any]:
     try:
         packets = sniff(iface=interface or None, count=packet_limit, timeout=timeout, store=True)
-    except PermissionError as exc:
-        raise LiveCaptureError(LIVE_CAPTURE_PERMISSION_HELP) from exc
     except OSError as exc:
         if exc.errno in {errno.EPERM, errno.EACCES}:
             raise LiveCaptureError(LIVE_CAPTURE_PERMISSION_HELP) from exc
