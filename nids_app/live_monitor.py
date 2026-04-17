@@ -30,19 +30,17 @@ def _capture_permission_hint() -> str:
     platform = sys.platform
     if platform.startswith("win"):
         return "Run the backend as Administrator and install Npcap."
-    if platform.startswith("linux"):
+    elif platform.startswith("linux"):
         return "Run the backend with sudo or grant capture capabilities on the Python binary."
-    if platform.startswith("darwin"):
+    elif platform.startswith("darwin"):
         return "Run the backend with sudo and allow packet capture permissions."
     return "Run the backend with elevated privileges and ensure capture drivers are installed."
 
 
 def _is_permission_error(exc: Exception, message: str) -> bool:
-    if isinstance(exc, PermissionError):
-        return True
-    if isinstance(exc, OSError) and getattr(exc, "errno", None) == 1:
-        return True
-    return "Operation not permitted" in message
+    return isinstance(exc, PermissionError) or (
+        isinstance(exc, OSError) and getattr(exc, "errno", None) == 1
+    ) or "Operation not permitted" in message
 
 
 def format_live_capture_error(exc: Exception) -> str:
