@@ -215,7 +215,7 @@ def live_monitor(user):
             user["id"],
         )
         return json_error(
-            "Live capture failed due to a backend error. Verify the interface name and packet-capture permissions.",
+            "Live capture failed due to a backend error. Verify the interface name or try again.",
             500,
         )
 

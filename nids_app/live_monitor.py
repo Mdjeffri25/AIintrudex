@@ -71,7 +71,7 @@ def capture_live_window(interface: str | None = None, packet_limit: int = 30, ti
     except PermissionError as exc:
         raise LiveCaptureError(LIVE_CAPTURE_PERMISSION_HELP) from exc
     except OSError as exc:
-        if getattr(exc, "errno", None) in {errno.EPERM, errno.EACCES}:
+        if exc.errno in {errno.EPERM, errno.EACCES}:
             raise LiveCaptureError(LIVE_CAPTURE_PERMISSION_HELP) from exc
         raise
 
