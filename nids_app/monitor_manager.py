@@ -92,7 +92,11 @@ def _run_monitor_loop(user_id: int, stop_event: threading.Event) -> None:
             )
             break
         except Exception as exc:
-            write_audit_log("continuous_monitor_error", {"user_id": user_id, "error": str(exc)}, user_id)
+            write_audit_log(
+                "continuous_monitor_error",
+                {"user_id": user_id, "error": str(exc), "stopped": False},
+                user_id,
+            )
 
         sleep_seconds = max(capture_seconds, 5)
         stop_event.wait(sleep_seconds)

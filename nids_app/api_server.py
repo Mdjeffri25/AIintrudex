@@ -10,6 +10,7 @@ from .agent_service import build_prediction_report
 from .analyst_agent import build_ai_brief
 from .audit import write_audit_log
 from .auth import authenticate_user, create_session, create_user, ensure_admin_account, get_user_by_token, update_user_password
+from .constants import LIVE_CAPTURE_PERMISSION_HELP
 from .database import execute, fetch_all, fetch_one, init_db, utc_now
 from .live_monitor import LiveCaptureError, capture_live_window
 from .monitor_manager import monitor_status, start_monitor, stop_monitor
@@ -204,10 +205,13 @@ def live_monitor(user):
 
     try:
         result = capture_live_window(interface=interface, packet_limit=packet_limit, timeout=timeout)
-    except LiveCaptureError as exc:
-        return json_error(str(exc), 403)
+    except LiveCaptureError:
+        return json_error(LIVE_CAPTURE_PERMISSION_HELP, 403)
     except Exception:
-        return json_error("Live capture failed. Check server logs for details.", 500)
+        return json_error(
+            "Live capture failed due to a backend error. Verify the interface name and packet-capture permissions.",
+            500,
+        )
 
     event_id = execute(
         """
