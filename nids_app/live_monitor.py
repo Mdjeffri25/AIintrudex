@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+import errno
 import sys
 from typing import Any, Dict
 
@@ -37,22 +38,23 @@ def _capture_permission_hint() -> str:
     return "Run the backend with elevated privileges and ensure capture drivers are installed."
 
 
-def _is_permission_error(exc: Exception, message: str) -> bool:
+def _is_permission_error(exc: Exception, exc_message: str) -> bool:
+    error_no = getattr(exc, "errno", None)
     return isinstance(exc, PermissionError) or (
-        isinstance(exc, OSError) and getattr(exc, "errno", None) == 1
-    ) or "Operation not permitted" in message
+        isinstance(exc, OSError) and error_no in {errno.EPERM, errno.EACCES}
+    ) or "Operation not permitted" in exc_message or "Permission denied" in exc_message
 
 
 def format_live_capture_error(exc: Exception) -> str:
-    message = str(exc).strip()
-    if _is_permission_error(exc, message):
+    exc_message = str(exc).strip()
+    if _is_permission_error(exc, exc_message):
         return (
             "Live capture failed: packet capture permission denied. "
             f"{_capture_permission_hint()}"
         )
-    if not message:
-        message = exc.__class__.__name__
-    return f"Live capture failed: {message}"
+    if not exc_message:
+        exc_message = exc.__class__.__name__
+    return f"Live capture failed: {exc_message}"
 
 
 def _tcp_flag_to_kdd_flag(packet) -> str:
