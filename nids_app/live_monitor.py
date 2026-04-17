@@ -40,7 +40,7 @@ def _capture_permission_hint() -> str:
 
 
 def _is_permission_error(exc: Exception, exc_message: str) -> bool:
-    """Return True when the exception represents a permission-related capture failure."""
+    """Return True when the exception indicates a permission failure via type, errno, or message patterns."""
     error_no = getattr(exc, "errno", None)
     is_permission = isinstance(exc, PermissionError)
     is_os_error = isinstance(exc, OSError) and error_no in {errno.EPERM, errno.EACCES}
@@ -49,7 +49,7 @@ def _is_permission_error(exc: Exception, exc_message: str) -> bool:
 
 
 def format_live_capture_error(exc: Exception) -> str:
-    """Format capture exceptions with OS-specific guidance for permission errors."""
+    """Return a user-friendly error message with OS hints for permission issues or a generic description."""
     exc_message = str(exc).strip()
     if _is_permission_error(exc, exc_message):
         return (
