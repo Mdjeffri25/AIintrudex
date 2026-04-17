@@ -18,7 +18,7 @@ from nids_app.config import (
     UNSW_SCALER_PATH,
     UNSW_TARGET_ENCODER_PATH,
 )
-from nids_app.constants import FEATURE_COLUMNS
+from nids_app.constants import FEATURE_COLUMNS, LIVE_CAPTURE_PERMISSION_HELP
 
 
 API_BASE = f"http://{API_HOST}:{API_PORT}/api"
@@ -940,6 +940,7 @@ def render_live_monitor_page(dashboard_data: dict):
     st.info(f"Monitoring host local IP: {get_monitoring_host_ip()}")
     st.caption("This is real live capture from the monitoring machine. The prediction is real, but it is based on a short capture window from that machine's current traffic, not dummy values.")
     st.caption("The source and destination IPs shown after capture are the most active addresses seen in the live traffic window on the monitoring machine.")
+    st.info(LIVE_CAPTURE_PERMISSION_HELP)
     interface = st.text_input("Interface name (leave blank for default)")
     packet_limit = st.slider("Packet limit", 10, 150, 30)
     timeout = st.slider("Capture seconds", 5, 30, 10)

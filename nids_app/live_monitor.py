@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import errno
 from collections import Counter
 from typing import Any, Dict
 
 from scapy.all import ICMP, IP, TCP, UDP, sniff
 
 from .agent_service import build_prediction_report
+from .constants import LIVE_CAPTURE_PERMISSION_HELP
 from .model_service import predict_records
 
 
@@ -23,6 +25,10 @@ SERVICE_PORT_MAP = {
     179: "bgp",
     443: "http_443",
 }
+
+
+class LiveCaptureError(RuntimeError):
+    """Raised when live packet capture is unavailable or denied by permissions."""
 
 
 def _tcp_flag_to_kdd_flag(packet) -> str:
@@ -60,7 +66,12 @@ def _protocol_name(packet) -> str:
 
 
 def capture_live_window(interface: str | None = None, packet_limit: int = 30, timeout: int = 10) -> Dict[str, Any]:
-    packets = sniff(iface=interface or None, count=packet_limit, timeout=timeout, store=True)
+    try:
+        packets = sniff(iface=interface or None, count=packet_limit, timeout=timeout, store=True)
+    except OSError as exc:
+        if exc.errno in {errno.EPERM, errno.EACCES}:
+            raise LiveCaptureError(LIVE_CAPTURE_PERMISSION_HELP) from exc
+        raise
 
     packet_count = len(packets)
     bytes_seen = sum(len(packet) for packet in packets)
