@@ -25,6 +25,21 @@ SERVICE_PORT_MAP = {
 }
 
 
+def format_live_capture_error(exc: Exception) -> str:
+    message = str(exc).strip()
+    if isinstance(exc, PermissionError) or (
+        isinstance(exc, OSError) and getattr(exc, "errno", None) == 1
+    ) or "Operation not permitted" in message:
+        return (
+            "Live capture failed: packet capture permission denied. "
+            "Run the backend as Administrator/root and ensure capture drivers are installed "
+            "(Windows: Npcap; Linux/macOS: sudo or grant capture capabilities)."
+        )
+    if not message:
+        message = exc.__class__.__name__
+    return f"Live capture failed: {message}"
+
+
 def _tcp_flag_to_kdd_flag(packet) -> str:
     if TCP not in packet:
         return "SF"
