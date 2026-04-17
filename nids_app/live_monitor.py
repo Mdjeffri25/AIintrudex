@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import os
+import re as _re
+import subprocess
+import tempfile
 from collections import Counter
 from typing import Any, Dict
 
-from scapy.all import ICMP, IP, TCP, UDP, sniff
+from scapy.all import ICMP, IP, TCP, UDP, rdpcap, sniff
 
 from .agent_service import build_prediction_report
 from .model_service import predict_records
@@ -59,8 +63,94 @@ def _protocol_name(packet) -> str:
     return "tcp"
 
 
+# Maximum extra seconds given to the tcpdump process beyond the requested timeout
+# so it has time to flush the PCAP file after the packet-count limit is reached.
+_TCPDUMP_TIMEOUT_BUFFER = 5
+
+# Only allow characters that are valid in a network interface name to prevent
+# arbitrary arguments from being injected into the tcpdump command.
+_IFACE_RE = _re.compile(r"^[A-Za-z0-9._:@-]{1,64}$")
+
+
+def _validate_interface(interface: str | None) -> str | None:
+    """Return *interface* unchanged if it is a safe interface name, else raise ValueError."""
+    if interface is None or interface == "":
+        return None
+    if not _IFACE_RE.match(interface):
+        raise ValueError(
+            f"Invalid interface name {interface!r}. "
+            "Only alphanumeric characters, hyphens, underscores, dots, colons, and '@' are allowed."
+        )
+    return interface
+
+
+def _sniff_with_fallback(interface: str | None, count: int, timeout: int):
+    """Try scapy sniff directly; fall back to a tcpdump subprocess on permission errors.
+
+    Raw socket access requires root or CAP_NET_RAW on Linux, or Npcap on Windows.
+    Many systems grant tcpdump that capability even when the Python process lacks it,
+    so running tcpdump as a subprocess and reading the resulting PCAP is a reliable
+    alternative.
+    """
+    try:
+        return sniff(iface=interface or None, count=count, timeout=timeout, store=True)
+    except OSError as exc:
+        # errno 1 = EPERM, errno 13 = EACCES – both indicate missing privilege
+        if exc.errno not in (1, 13):
+            raise
+
+    # --- tcpdump fallback ---
+    # NamedTemporaryFile with delete=False creates and closes the file atomically,
+    # avoiding the fd-leak and race-condition of mkstemp + immediate close.
+    with tempfile.NamedTemporaryFile(suffix=".pcap", delete=False) as tmp:
+        pcap_path = tmp.name
+    try:
+        cmd = ["tcpdump", "-w", pcap_path, "-c", str(count)]
+        if interface:
+            # interface has already been validated by _validate_interface; only
+            # safe characters (alphanumeric/._:@-) are allowed, and the command
+            # is passed as a list so the shell is never invoked.
+            cmd += ["-i", interface]
+        proc = None
+        try:
+            # Allow slightly more time than the capture window so tcpdump can
+            # finish flushing the PCAP file after hitting the packet-count limit.
+            proc = subprocess.run(
+                cmd,
+                timeout=timeout + _TCPDUMP_TIMEOUT_BUFFER,
+                capture_output=True,
+                check=False,
+            )
+        except FileNotFoundError:
+            raise PermissionError(
+                "Packet capture requires elevated privileges. "
+                "On Linux, run as root or grant CAP_NET_RAW to Python "
+                "('sudo setcap cap_net_raw+eip $(which python3)'), "
+                "or install and configure tcpdump with the cap_net_raw capability. "
+                "On Windows, install Npcap."
+            ) from None
+        except subprocess.TimeoutExpired:
+            pass  # partial capture is acceptable
+
+        if os.path.getsize(pcap_path) > 0:
+            return rdpcap(pcap_path)
+
+        # No packets written – surface tcpdump's stderr to help with diagnosis
+        stderr_msg = ""
+        if proc is not None and proc.stderr:
+            stderr_msg = proc.stderr.decode(errors="replace").strip()
+        detail = f": {stderr_msg}" if stderr_msg else ""
+        raise RuntimeError(f"tcpdump captured 0 bytes{detail}")
+    finally:
+        try:
+            os.unlink(pcap_path)
+        except OSError:
+            pass
+
+
 def capture_live_window(interface: str | None = None, packet_limit: int = 30, timeout: int = 10) -> Dict[str, Any]:
-    packets = sniff(iface=interface or None, count=packet_limit, timeout=timeout, store=True)
+    interface = _validate_interface(interface)
+    packets = _sniff_with_fallback(interface, packet_limit, timeout)
 
     packet_count = len(packets)
     bytes_seen = sum(len(packet) for packet in packets)
