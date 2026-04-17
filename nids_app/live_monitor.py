@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+import sys
 from typing import Any, Dict
 
 from scapy.all import ICMP, IP, TCP, UDP, sniff
@@ -25,6 +26,17 @@ SERVICE_PORT_MAP = {
 }
 
 
+def _capture_permission_hint() -> str:
+    platform = sys.platform
+    if platform.startswith("win"):
+        return "Run the backend as Administrator and install Npcap."
+    if platform.startswith("linux"):
+        return "Run the backend with sudo or grant capture capabilities on the Python binary."
+    if platform.startswith("darwin"):
+        return "Run the backend with sudo and allow packet capture permissions."
+    return "Run the backend with elevated privileges and ensure capture drivers are installed."
+
+
 def format_live_capture_error(exc: Exception) -> str:
     message = str(exc).strip()
     if isinstance(exc, PermissionError) or (
@@ -32,8 +44,7 @@ def format_live_capture_error(exc: Exception) -> str:
     ) or "Operation not permitted" in message:
         return (
             "Live capture failed: packet capture permission denied. "
-            "Run the backend as Administrator/root and ensure capture drivers are installed "
-            "(Windows: Npcap; Linux/macOS: sudo or grant capture capabilities)."
+            f"{_capture_permission_hint()}"
         )
     if not message:
         message = exc.__class__.__name__
