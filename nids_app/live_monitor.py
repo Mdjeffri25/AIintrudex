@@ -28,6 +28,7 @@ SERVICE_PORT_MAP = {
 
 
 def _capture_permission_hint() -> str:
+    """Return OS-specific guidance for packet capture permission errors."""
     platform = sys.platform
     if platform.startswith("win"):
         return "Run the backend as Administrator and install Npcap."
@@ -39,13 +40,16 @@ def _capture_permission_hint() -> str:
 
 
 def _is_permission_error(exc: Exception, exc_message: str) -> bool:
+    """Return True when the exception represents a permission-related capture failure."""
     error_no = getattr(exc, "errno", None)
-    return isinstance(exc, PermissionError) or (
-        isinstance(exc, OSError) and error_no in {errno.EPERM, errno.EACCES}
-    ) or "Operation not permitted" in exc_message or "Permission denied" in exc_message
+    is_permission = isinstance(exc, PermissionError)
+    is_os_error = isinstance(exc, OSError) and error_no in {errno.EPERM, errno.EACCES}
+    is_message = "Operation not permitted" in exc_message or "Permission denied" in exc_message
+    return is_permission or is_os_error or is_message
 
 
 def format_live_capture_error(exc: Exception) -> str:
+    """Format capture exceptions with OS-specific guidance for permission errors."""
     exc_message = str(exc).strip()
     if _is_permission_error(exc, exc_message):
         return (
