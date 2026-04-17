@@ -37,11 +37,17 @@ def _capture_permission_hint() -> str:
     return "Run the backend with elevated privileges and ensure capture drivers are installed."
 
 
+def _is_permission_error(exc: Exception, message: str) -> bool:
+    if isinstance(exc, PermissionError):
+        return True
+    if isinstance(exc, OSError) and getattr(exc, "errno", None) == 1:
+        return True
+    return "Operation not permitted" in message
+
+
 def format_live_capture_error(exc: Exception) -> str:
     message = str(exc).strip()
-    if isinstance(exc, PermissionError) or (
-        isinstance(exc, OSError) and getattr(exc, "errno", None) == 1
-    ) or "Operation not permitted" in message:
+    if _is_permission_error(exc, message):
         return (
             "Live capture failed: packet capture permission denied. "
             f"{_capture_permission_hint()}"
